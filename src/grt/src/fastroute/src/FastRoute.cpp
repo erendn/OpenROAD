@@ -38,6 +38,8 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <iostream>
+#include <fstream>
 
 #include "AbstractFastRouteRenderer.h"
 #include "DataType.h"
@@ -936,6 +938,10 @@ NetRouteMap FastRouteCore::run()
       }
     }
   }
+  ofstream fp("file_deneme.txt");
+  fp << "Deneme";
+  fp.close();
+
 
   SaveLastRouteLen();
 
