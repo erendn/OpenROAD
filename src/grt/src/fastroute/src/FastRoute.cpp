@@ -938,7 +938,7 @@ NetRouteMap FastRouteCore::run()
       }
     }
   }
-  ofstream fp("file_deneme.txt");
+  std::ofstream fp("file_deneme.txt");
   fp << "Deneme";
   fp.close();
 
