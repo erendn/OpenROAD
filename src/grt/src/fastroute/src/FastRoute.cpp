@@ -938,8 +938,30 @@ NetRouteMap FastRouteCore::run()
       }
     }
   }
-  std::ofstream fp("file_deneme.txt");
-  fp << "Deneme";
+  std::ofstream fp("rst_dump.txt");
+  for (int net_id = 0; net_id < netCount(); ++net_id) {
+    // This is the net
+    const auto& net = nets_[net_id];
+    // This is the dbNet instance of the net
+    const auto& db_net = net->getDbNet();
+    // This is the Steiner tree of the net
+    const auto& st_tree = sttrees_[net_id];
+    fp << "Net: " << db_net->getName() << std::endl;
+    // Iterate over the nodes of the Steiner tree
+    for (int node_id = 0; node_id < st_tree.num_nodes; ++node_id) {
+        const auto node = st_tree.nodes[node_id];
+        auto x = node.x;
+        auto y = node.y;
+        fp << "Node: " << node_id << ", x: " << x << ", y: " << y << std::endl;
+    }
+    // Iterate over the edges of the Steiner tree
+    for (int edge_id = 0; edge_id < st_tree.num_edges(); ++edge_id) {
+        const auto edge = st_tree.edges[edge_id];
+        auto n1 = edge.n1;
+        auto n2 = edge.n2;
+        fp << "Edge: " << edge_id << ", n1: " << n1 << ", n2: " << n2 << std::endl;
+    }
+  }
   fp.close();
 
 
