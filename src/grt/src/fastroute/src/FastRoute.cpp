@@ -40,6 +40,7 @@
 #include <unordered_set>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include "AbstractFastRouteRenderer.h"
 #include "DataType.h"
@@ -938,29 +939,63 @@ NetRouteMap FastRouteCore::run()
       }
     }
   }
+
+
   std::ofstream fp("rst_dump.txt");
   for (int net_id = 0; net_id < netCount(); ++net_id) {
+    std::ostringstream buffer;
     // This is the net
     const auto& net = nets_[net_id];
     // This is the dbNet instance of the net
     const auto& db_net = net->getDbNet();
+    // These are ITerms of the net, used to identify driver and sink nodes
+    auto iterms = db_net->getITerms();
     // This is the Steiner tree of the net
-    const auto& st_tree = sttrees_[net_id];
-    fp << "Net: " << db_net->getName() << std::endl;
+    const StTree *st_tree = &(sttrees_[net_id]);
+    buffer << "N " << db_net->getName() << std::endl;
+    // Skip if less than 3 terminals
+    if (st_tree->num_terminals < 3) {
+        continue;
+    }
+    // Skip if a clock net
+    if (net->isClock()) {
+        continue;
+    }
+    // Skip if a special net
+    if (db_net->isSpecial()) {
+        continue;
+    }
     // Iterate over the nodes of the Steiner tree
-    for (int node_id = 0; node_id < st_tree.num_nodes; ++node_id) {
-        const auto node = st_tree.nodes[node_id];
+    for (int node_id = 0; node_id < sttrees_[net_id]; ++node_id) {
+        const auto node = st_tree->nodes[node_id];
         auto x = node.x;
         auto y = node.y;
-        fp << "Node: " << node_id << ", x: " << x << ", y: " << y << std::endl;
+        buffer <<  "Node: " << node_id << ", x: " << x << ", y: " << y << std::endl;
     }
     // Iterate over the edges of the Steiner tree
-    for (int edge_id = 0; edge_id < st_tree.num_edges(); ++edge_id) {
-        const auto edge = st_tree.edges[edge_id];
+    for (int edge_id = 0; edge_id < st_tree->num_edges(); ++edge_id) {
+        const auto edge = st_tree->edges[edge_id];
         auto n1 = edge.n1;
         auto n2 = edge.n2;
-        fp << "Edge: " << edge_id << ", n1: " << n1 << ", n2: " << n2 << std::endl;
+        buffer << "Edge: " << edge_id << ", n1: " << n1 << ", n2: " << n2 << std::endl;
     }
+    // Iterate over ITerms
+    int pin_id = 0;
+    for (const auto iterm : iterms) {
+        const auto inst_name = iterm->getInst()->getName();
+        const auto term_name = iterm->getMTerm()->getName();
+        int iterm_x, iterm_y;
+        iterm->getAvgXY(&iterm_x, &iterm_y);
+        if (iterm->getIoType() == odb::dbIoType::OUTPUT) {
+            buffer << "D ";
+        } else {
+            buffer << "S ";
+        }
+        buffer << pin_id << " " << iterm_x << " " << iterm_y << " 0 0" << std::endl;
+        buffer << "ITerm: " << inst_name << "/" << term_name << ", " << iterm->getIoType().getString() << ", x: " << iterm_x << ", y: " << iterm_y << std::endl;
+        ++pin_id;
+    }
+    fp << buffer.str();
   }
   fp.close();
 
