@@ -1342,6 +1342,11 @@ void dbNet::printWire(int fid, int tid, char* type)
     fclose(fp);
 }
 
+void dbNet::printHebele()
+{
+    printf("hebele de hubele %d", getId());
+}
+
 void dbNet::printWire()
 {
   printWire(0, 0, nullptr);

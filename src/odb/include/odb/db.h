@@ -2081,6 +2081,7 @@ class dbNet : public dbObject
   uint wireEqual(dbNet* target);
 
   void wireMatch(dbNet* target);
+  void printHebele();
   void printWire(int fid, int tid, char* type);
   void printWire();
   void printWire(char* type);
