@@ -14,6 +14,7 @@
 #include "MeasuredVtSwapPolicy.hh"
 #include "OptimizationPolicy.hh"
 #include "OptimizerTypes.hh"
+#include "PowerReliefPolicy.hh"
 #include "RepairSetupContext.hh"
 #include "SetupCritVtSwapPolicy.hh"
 #include "SetupDirectionalPolicy.hh"
@@ -146,6 +147,10 @@ std::unique_ptr<OptimizationPolicy> Optimizer::makePolicyForPhase(
     return std::make_unique<GlobalSizingPolicy>(
         resizer_, committer_, setup_context, config_);
   }
+  if (phase_name == "POWER_RELIEF") {
+    return std::make_unique<PowerReliefPolicy>(
+        resizer_, committer_, setup_context, config_);
+  }
   // Only public phase names are listed; experimental top-level tokens
   // (LEGACY_MT, MT1, MEASURED_VT_SWAP) are accepted but undocumented.
   resizer_.logger()->error(
@@ -153,7 +158,7 @@ std::unique_ptr<OptimizationPolicy> Optimizer::makePolicyForPhase(
       217,
       "Unknown phase name '{}'. Valid phase names are: LEGACY, WNS, "
       "WNS_PATH, WNS_CONE, TNS, ENDPOINT_FANIN, STARTPOINT_FANOUT, "
-      "LAST_GASP, CRIT_VT_SWAP, REROUTE, GLOBAL_SIZING",
+      "LAST_GASP, CRIT_VT_SWAP, REROUTE, GLOBAL_SIZING, POWER_RELIEF",
       phase_name);
   return nullptr;
 }
@@ -187,7 +192,7 @@ bool Optimizer::run()
         223,
         "No phase names specified. Valid phase names are: LEGACY, WNS, "
         "WNS_PATH, WNS_CONE, TNS, ENDPOINT_FANIN, STARTPOINT_FANOUT, "
-        "LAST_GASP, CRIT_VT_SWAP, REROUTE, GLOBAL_SIZING");
+        "LAST_GASP, CRIT_VT_SWAP, REROUTE, GLOBAL_SIZING, POWER_RELIEF");
   }
   const int phase_count = phase_names.size();
 

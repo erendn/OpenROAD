@@ -118,6 +118,7 @@ or_integration_tests(
     repair_setup_swappins_legacy_flat
     repair_setup_unbuffer_legacy_bufx2
     repair_setup_unbuffer_legacy_bufx8
+    repair_setup_power_relief
     repair_setup1
     repair_setup2
     repair_setup3
