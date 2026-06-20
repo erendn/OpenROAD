@@ -4779,8 +4779,19 @@ void GlobalRouter::removeNet(odb::dbNet* db_net)
     }
     Net* deleted_net = it->second;
 
+    Net* preserved_net = nullptr;
     if (deleted_net->isMergedNet()) {
-      Net* preserved_net = db_net_map_[deleted_net->getMergedNet()];
+      // .find() rather than [] because getMergedNet() can return a stale
+      // dbNet pointer if the previously-merged peer was already destroyed
+      // -- in that case the merge linkage on this survivor was never cleared
+      // (updateDirtyNets() only does so after the merge commits via
+      // updateRoutes()), and using [] would insert a phantom null entry.
+      auto peer_it = db_net_map_.find(deleted_net->getMergedNet());
+      if (peer_it != db_net_map_.end()) {
+        preserved_net = peer_it->second;
+      }
+    }
+    if (preserved_net != nullptr) {
       if (preserved_net->areSegmentsRestored()
           && deleted_net->areSegmentsRestored()) {
         // Both preserved and deleted nets have segments restored from ODB. Do
@@ -5558,10 +5569,12 @@ bool GlobalRouter::connectRouting(odb::dbNet* db_net1, odb::dbNet* db_net2)
 
   GRoute& net1_route = routes_[db_net1];
   GRoute& net2_route = routes_[db_net2];
+
+  std::vector<GSegment> connection;
   if (pin_pos1 != pin_pos2) {
     const int layer1 = findTopLayerOverPosition(pin_pos1, net1_route);
     const int layer2 = findTopLayerOverPosition(pin_pos2, net2_route);
-    std::vector<GSegment> connection
+    connection
         = createConnectionForPositions(pin_pos1, pin_pos2, layer1, layer2);
 
     for (const GSegment& seg : connection) {
@@ -5581,7 +5594,31 @@ bool GlobalRouter::connectRouting(odb::dbNet* db_net1, odb::dbNet* db_net2)
         }
       }
     }
+  }
 
+  // Speculatively splice net2's segments (and the bridge connection) onto
+  // net1's route so netIsCovered can be evaluated against the merged route.
+  // graph2d_ / sttrees_ side effects (addTreeEdge / updateResources) only run
+  // after coverage is confirmed: leaving stale spliced segments in routes_
+  // alongside an undone graph2d_ update is what produces double-subtraction in
+  // updateDirtyNets's segs_restored path and overflowed the per-tile uint16
+  // counter (GRT-0228).
+  const size_t saved_net1_size = net1_route.size();
+  if (pin_pos1 != pin_pos2) {
+    net1_route.insert(net1_route.end(), net2_route.begin(), net2_route.end());
+    net1_route.insert(net1_route.end(), connection.begin(), connection.end());
+  } else {
+    net1_route.insert(net1_route.end(), net2_route.begin(), net2_route.end());
+  }
+
+  updateNetPins(net1);
+  std::string dump;
+  if (!netIsCovered(db_net1, dump)) {
+    net1_route.resize(saved_net1_size);
+    return false;
+  }
+
+  if (pin_pos1 != pin_pos2) {
     if (!net1->areSegmentsRestored() && !net2->areSegmentsRestored()) {
       for (const GSegment& seg : connection) {
         if (!seg.isVia()) {
@@ -5613,15 +5650,8 @@ bool GlobalRouter::connectRouting(odb::dbNet* db_net1, odb::dbNet* db_net2)
         }
       }
     }
-    net1_route.insert(net1_route.end(), net2_route.begin(), net2_route.end());
-    net1_route.insert(net1_route.end(), connection.begin(), connection.end());
-  } else {
-    net1_route.insert(net1_route.end(), net2_route.begin(), net2_route.end());
   }
-
-  updateNetPins(net1);
-  std::string dump;
-  return netIsCovered(db_net1, dump);
+  return true;
 }
 
 void GlobalRouter::findBufferPinPostions(Net* net1,
