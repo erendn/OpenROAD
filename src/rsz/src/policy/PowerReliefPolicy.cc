@@ -226,8 +226,17 @@ int PowerReliefPolicy::runUnbufferPass(sta::Slack& pre_wns, sta::Slack& pre_tns)
     if (cell == nullptr || !cell->isBuffer()) {
       continue;
     }
-    // Skip buffers on critical paths: Only remove buffers whose worst pin slack
-    // is comfortably positive. Resizer::canRemoveBuffer checks electrical
+    // Skip clock buffers: Don't touch the clock tree.
+    std::unique_ptr<sta::InstancePinIterator> pit(network_->pinIterator(inst));
+    while (pit->hasNext()) {
+      sta::Pin* pin = pit->next();
+      const sta::PortDirection* dir = network_->direction(pin);
+      if (dir->isOutput() && sta_->isClock(pin, sta_->cmdMode())) {
+        return false;
+      }
+    }
+    // Skip buffers on critical paths: Only remove buffers whose worst pin
+    // slack is comfortably positive. Resizer::canRemoveBuffer checks electrical
     // legality (max-cap on the merged net, etc.); the slack guard adds timing
     // legality on top.
     const sta::Slack slack = getInstanceSlack(inst);
