@@ -235,6 +235,22 @@ std::vector<std::unique_ptr<MoveCandidate>> CloneGenerator::generate(
 
   const odb::Point clone_loc
       = computeCloneLocation(resizer_, drvr_pin, fanout_slacks);
+
+  // Skip cloning in congested regions, where the added gate and duplicated
+  // fanout hurt most.
+  const double congestion = resizer_.congestionAt(clone_loc);
+  if (congestion > resizer_.congestionThreshold()) {
+    debugPrint(resizer_.logger(),
+               RSZ,
+               "clone_move",
+               2,
+               "REJECT CloneMove {}: congested region ({:.2f} > {:.2f})",
+               resizer_.network()->pathName(drvr_pin),
+               congestion,
+               resizer_.congestionThreshold());
+    return candidates;
+  }
+
   candidates.push_back(
       std::make_unique<CloneCandidate>(resizer_,
                                        target,

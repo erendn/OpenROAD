@@ -94,6 +94,56 @@ proc report_dont_touch { args } {
   rsz::report_dont_touch
 }
 
+sta::define_cmd_args "report_design_state_map" \
+  {[-type placement_density|pin_density|estimated_congestion|routing_congestion|power_density]\
+   [-bins_x n]\
+   [-bins_y n]}
+
+proc report_design_state_map { args } {
+  sta::parse_key_args "report_design_state_map" args \
+    keys {-type -bins_x -bins_y} flags {}
+  sta::check_argc_eq0 "report_design_state_map" $args
+
+  set type "placement_density"
+  if { [info exists keys(-type)] } {
+    set type $keys(-type)
+  }
+  set bins_x 0
+  if { [info exists keys(-bins_x)] } {
+    set bins_x $keys(-bins_x)
+    sta::check_cardinal "-bins_x" $bins_x
+  }
+  set bins_y 0
+  if { [info exists keys(-bins_y)] } {
+    set bins_y $keys(-bins_y)
+    sta::check_cardinal "-bins_y" $bins_y
+  }
+
+  rsz::report_design_state_map_cmd $type $bins_x $bins_y
+}
+
+sta::define_cmd_args "set_congestion_aware_repair" \
+  {[-signal placement_density|pin_density|estimated_congestion|routing_congestion|power_density]\
+   [-threshold value]}
+
+proc set_congestion_aware_repair { args } {
+  sta::parse_key_args "set_congestion_aware_repair" args \
+    keys {-signal -threshold} flags {}
+  sta::check_argc_eq0 "set_congestion_aware_repair" $args
+
+  set signal "placement_density"
+  if { [info exists keys(-signal)] } {
+    set signal $keys(-signal)
+  }
+  set threshold 0.7
+  if { [info exists keys(-threshold)] } {
+    set threshold $keys(-threshold)
+    sta::check_positive_float "-threshold" $threshold
+  }
+
+  rsz::set_congestion_aware_repair_cmd $signal $threshold
+}
+
 sta::define_cmd_args "buffer_ports" {[-inputs] [-outputs]\
                                      [-max_utilization util]\
                                      [-buffer_cell buf_cell]\

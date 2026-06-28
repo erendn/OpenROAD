@@ -83,6 +83,7 @@ class Rebuffer;
 class ResizerObserver;
 class ConcreteSwapArithModules;
 class RegisterOdbCallbackGuard;
+class DesignStateMaps;
 
 class NetHash
 {
@@ -316,6 +317,23 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   void reportDontTouch();
 
   void reportFastBufferSizes();
+
+  // Builds (if needed) and logs a design-state map. type is a string such as
+  // "placement_density"; bins_x/bins_y of 0 keep the current default grid.
+  void reportDesignStateMap(const std::string& type, int bins_x, int bins_y);
+
+  // === Congestion-aware repair (on by default) ============================
+  // Setup repair skips gate cloning and buffer insertion in congested regions,
+  // judged from the configured design-state map normalized to [0,1].
+  DesignStateMaps* designStateMaps() const { return design_state_maps_.get(); }
+  // signal: a design-state map type string (e.g. "placement_density")
+  // threshold: normalized [0,1] congestion above which a region is "congested"
+  void setCongestionAwareConfig(const std::string& signal, double threshold);
+  double congestionThreshold() const { return congestion_threshold_; }
+  // Normalized [0,1] congestion of the configured signal at p (0 if no map).
+  double congestionAt(const odb::Point& p);
+  // Rebuilds the configured congestion map for a fresh repair run.
+  void prepareCongestionMap();
 
   void setMaxUtilization(double max_utilization);
   // Remove all or selected buffers from the netlist.
@@ -937,6 +955,7 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   std::unique_ptr<RepairHold> repair_hold_;
   std::unique_ptr<ConcreteSwapArithModules> swap_arith_modules_;
   std::unique_ptr<Rebuffer> rebuffer_;
+  std::unique_ptr<DesignStateMaps> design_state_maps_;
 
   // Layer RC per wire length indexed by layer->getNumber(), corner->index
   sta::LibertyCellSet dont_use_;
@@ -1030,6 +1049,10 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   // initBlock() from `set_global_sizing_config` dbProperties; in-struct
   // defaults apply when no property is present.
   GlobalSizingConfig global_sizing_config_;
+
+  // Congestion-aware repair config (on by default).
+  std::string congestion_signal_ = "placement_density";
+  double congestion_threshold_ = 0.7;
 
   // Clock buffer pattern configuration
   std::string clock_buffer_string_;

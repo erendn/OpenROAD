@@ -213,6 +213,25 @@ report_dont_touch()
 }
 
 void
+report_design_state_map_cmd(const char *type,
+                            int bins_x,
+                            int bins_y)
+{
+  ensureLinked();
+  Resizer *resizer = getResizer();
+  resizer->reportDesignStateMap(type, bins_x, bins_y);
+}
+
+void
+set_congestion_aware_repair_cmd(const char *signal,
+                                double threshold)
+{
+  ensureLinked();
+  Resizer *resizer = getResizer();
+  resizer->setCongestionAwareConfig(signal, threshold);
+}
+
+void
 set_dont_touch_net(Net *net,
                    bool dont_touch)
 {

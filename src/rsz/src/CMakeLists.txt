@@ -43,6 +43,14 @@ add_library(rsz_lib
     ConcreteSwapArithModules.cc
     RepairTargetCollector.cc
 
+    map/DesignStateMap.cc
+    map/PlacementDensityMap.cc
+    map/PinDensityMap.cc
+    map/RudyCongestionMap.cc
+    map/RoutingCongestionMap.cc
+    map/PowerDensityMap.cc
+    map/DesignStateMaps.cc
+
     move/BufferCandidate.cc
     move/BufferGenerator.cc
     move/CloneCandidate.cc
@@ -95,6 +103,7 @@ target_include_directories(rsz_lib
     ../include
   PRIVATE
     .
+    map
     move
     policy
 )

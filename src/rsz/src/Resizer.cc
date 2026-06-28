@@ -45,6 +45,8 @@
 #include "db_sta/dbSta.hh"
 #include "est/EstimateParasitics.h"
 #include "grt/GlobalRouter.h"
+#include "map/DesignStateMap.hh"
+#include "map/DesignStateMaps.hh"
 #include "odb/PtrSetMap.h"
 #include "odb/db.h"
 #include "odb/dbObject.h"
@@ -362,6 +364,7 @@ Resizer::Resizer(utl::Logger* logger,
   repair_design_ = std::make_unique<RepairDesign>(this);
   repair_hold_ = std::make_unique<RepairHold>(this);
   rebuffer_ = std::make_unique<Rebuffer>(this);
+  design_state_maps_ = std::make_unique<DesignStateMaps>(this);
 }
 
 Resizer::~Resizer() = default;
@@ -3437,6 +3440,58 @@ void Resizer::reportDontUse() const
   }
 }
 
+void Resizer::reportDesignStateMap(const std::string& type,
+                                   int bins_x,
+                                   int bins_y)
+{
+  DesignStateMapType map_type;
+  if (!DesignStateMaps::parseType(type, map_type)) {
+    logger_->error(RSZ, 3300, "Unknown design state map type: {}", type);
+    return;
+  }
+  initBlock();
+  design_state_maps_->setDefaultBinCount(bins_x, bins_y);
+  // Always rebuild so the report reflects the current design state.
+  design_state_maps_->invalidate(map_type);
+  design_state_maps_->report(map_type);
+}
+
+void Resizer::setCongestionAwareConfig(const std::string& signal,
+                                       double threshold)
+{
+  DesignStateMapType type;
+  if (!DesignStateMaps::parseType(signal, type)) {
+    logger_->error(RSZ, 3301, "Unknown congestion signal: {}", signal);
+    return;
+  }
+  congestion_signal_ = signal;
+  congestion_threshold_ = threshold;
+}
+
+double Resizer::congestionAt(const odb::Point& p)
+{
+  DesignStateMapType type;
+  if (!DesignStateMaps::parseType(congestion_signal_, type)) {
+    return 0.0;
+  }
+  const DesignStateMap* map = design_state_maps_->get(type);
+  if (map == nullptr) {
+    return 0.0;
+  }
+  return map->normalizedAt(p);
+}
+
+void Resizer::prepareCongestionMap()
+{
+  DesignStateMapType type;
+  if (!DesignStateMaps::parseType(congestion_signal_, type)) {
+    return;
+  }
+  // Rebuild against the current design state for this repair run.
+  design_state_maps_->invalidate(type);
+  design_state_maps_->get(type);
+}
+
 void Resizer::setDontTouch(const sta::Instance* inst, bool dont_touch)
 {
   dbInst* db_inst = db_network_->staToDb(inst);
@@ -4816,6 +4871,7 @@ void Resizer::repairDesign(double max_wire_length,
   utl::SetAndRestore set_match_footprint(match_cell_footprint_,
                                          match_cell_footprint);
   resizePreamble();
+  prepareCongestionMap();
   if (estimate_parasitics_->getParasiticsSrc()
           == est::ParasiticsSrc::kGlobalRouting
       || estimate_parasitics_->getParasiticsSrc()
@@ -5019,6 +5075,7 @@ bool Resizer::repairSetup(double setup_margin,
   config.skip_vt_swap = skip_vt_swap;
   config.skip_crit_vt_swap = skip_crit_vt_swap;
 
+  prepareCongestionMap();
   rsz::Optimizer optimizer(this);
   optimizer.configure(config);
   bool result = optimizer.run();

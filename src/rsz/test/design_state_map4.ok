@@ -1,0 +1,22 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: gcd
+[INFO ODB-0130]     Created 54 pins.
+[INFO ODB-0131]     Created 571 components and 2554 component-terminals.
+[INFO ODB-0132]     Created 5 special nets and 1142 connections.
+[INFO ODB-0133]     Created 528 nets and 1412 connections.
+Design State Map: Power Density [uW]
+  Region: (10.07, 11.20) - (90.25, 91.00) um
+  Grid: 6 x 6 bins (13.36 x 13.30 um per bin)
+  Values: min 0.00  mean 16.68  max 65.38 uW
+  Occupied bins: 33 / 36
+  Hotspots (top 10):
+    1: 65.38 uW at (43.48, 57.75) um
+    2: 60.24 uW at (43.48, 44.45) um
+    3: 56.80 uW at (56.84, 57.75) um
+    4: 55.82 uW at (30.11, 57.75) um
+    5: 54.30 uW at (56.84, 44.45) um
+    6: 45.52 uW at (30.11, 31.15) um
+    7: 44.58 uW at (30.11, 44.45) um
+    8: 40.08 uW at (43.48, 71.05) um
+    9: 35.36 uW at (43.48, 31.15) um
+    10: 23.45 uW at (16.75, 57.75) um

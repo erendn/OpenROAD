@@ -1,0 +1,38 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: gcd
+[INFO ODB-0130]     Created 54 pins.
+[INFO ODB-0131]     Created 571 components and 2554 component-terminals.
+[INFO ODB-0132]     Created 5 special nets and 1142 connections.
+[INFO ODB-0133]     Created 528 nets and 1412 connections.
+Design State Map: Pin Density [pins]
+  Region: (10.07, 11.20) - (90.25, 91.00) um
+  Grid: 6 x 6 bins (13.36 x 13.30 um per bin)
+  Values: min 0.00  mean 39.22  max 151.00 pins
+  Occupied bins: 33 / 36
+  Hotspots (top 10):
+    1: 151.00 pins at (30.11, 44.45) um
+    2: 148.00 pins at (56.84, 57.75) um
+    3: 138.00 pins at (30.11, 57.75) um
+    4: 114.00 pins at (43.48, 57.75) um
+    5: 114.00 pins at (56.84, 44.45) um
+    6: 113.00 pins at (43.48, 44.45) um
+    7: 93.00 pins at (43.48, 31.15) um
+    8: 86.00 pins at (30.11, 31.15) um
+    9: 72.00 pins at (56.84, 31.15) um
+    10: 63.00 pins at (43.48, 71.05) um
+Design State Map: Estimated Congestion (RUDY)
+  Region: (0.00, 0.00) - (100.13, 100.80) um
+  Grid: 35 x 35 bins (2.86 x 2.88 um per bin)
+  Values: min 0.00  mean 3.87  max 26.40
+  Occupied bins: 1213 / 1225
+  Hotspots (top 10):
+    1: 26.40 at (66.97, 52.73) um
+    2: 25.35 at (38.48, 32.77) um
+    3: 25.19 at (41.33, 47.02) um
+    4: 22.24 at (38.48, 52.73) um
+    5: 22.16 at (12.82, 52.73) um
+    6: 21.90 at (38.48, 47.02) um
+    7: 21.64 at (41.33, 52.73) um
+    8: 21.35 at (41.33, 44.17) um
+    9: 21.33 at (66.97, 12.82) um
+    10: 21.07 at (41.33, 32.77) um
