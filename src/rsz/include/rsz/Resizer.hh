@@ -1052,7 +1052,7 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
 
   // Congestion-aware repair config (on by default).
   std::string congestion_signal_ = "placement_density";
-  double congestion_threshold_ = 0.7;
+  double congestion_threshold_ = 0.9;
 
   // Clock buffer pattern configuration
   std::string clock_buffer_string_;
