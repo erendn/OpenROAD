@@ -80,6 +80,7 @@ class RecoverPower;
 class RepairDesign;
 class RepairHold;
 class Rebuffer;
+class SkewAnalysis;
 class ResizerObserver;
 class ConcreteSwapArithModules;
 class RegisterOdbCallbackGuard;
@@ -388,6 +389,22 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   bool recoverPower(float recover_power_percent,
                     bool match_cell_footprint,
                     bool verbose);
+
+  ////////////////////////////////////////////////////////////////
+  // Read-only useful-skew headroom analysis (no netlist/clock changes).
+  void estimateUsefulSkew(const std::vector<float>& budget_fractions,
+                          const char* dump_file,
+                          bool verbose);
+
+  ////////////////////////////////////////////////////////////////
+  // Post-CTS useful-skew optimization: insert clock delay buffers to move
+  // setup slack onto critical paths.  Modifies the clock network.
+  void optimizeClockSkew(float budget_fraction,
+                         const char* buffer_cell_name,
+                         int max_buffers_per_reg,
+                         int max_buffer_count,
+                         int max_passes,
+                         bool verbose);
 
   ////////////////////////////////////////////////////////////////
   void swapArithModules(int path_count,
@@ -1055,6 +1072,9 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   friend class GateCloner;
   friend class PreChecks;
   friend class RecoverPower;
+  friend class SkewAnalysis;
+  friend class SkewScheduler;
+  friend class SkewRealizer;
   friend class RepairDesign;
   friend class RepairHold;
   friend class SwapArithModules;

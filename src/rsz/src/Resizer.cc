@@ -40,6 +40,8 @@
 #include "RepairHold.hh"
 #include "RepairTargetCollector.hh"
 #include "ResizerObserver.hh"
+#include "SkewAnalysis.hh"
+#include "SkewRealizer.hh"
 #include "boost/functional/hash.hpp"
 #include "boost/multi_array.hpp"
 #include "db_sta/dbSta.hh"
@@ -5155,6 +5157,33 @@ bool Resizer::recoverPower(float recover_power_percent,
   bool result = recover_power_->recoverPower(recover_power_percent, verbose);
   logger_->info(RSZ, 507, "Runtime: {:.2f}s", timer.elapsed());
   return result;
+}
+////////////////////////////////////////////////////////////////
+void Resizer::estimateUsefulSkew(const std::vector<float>& budget_fractions,
+                                 const char* dump_file,
+                                 bool verbose)
+{
+  SkewAnalysis analysis(this);
+  analysis.estimateUsefulSkew(budget_fractions, dump_file, verbose);
+}
+////////////////////////////////////////////////////////////////
+void Resizer::optimizeClockSkew(float budget_fraction,
+                                const char* buffer_cell_name,
+                                int max_buffers_per_reg,
+                                int max_buffer_count,
+                                int max_passes,
+                                bool verbose)
+{
+  utl::Timer timer;
+  resizePreamble();
+  SkewRealizer realizer(this);
+  realizer.optimizeClockSkew(budget_fraction,
+                             buffer_cell_name,
+                             max_buffers_per_reg,
+                             max_buffer_count,
+                             max_passes,
+                             verbose);
+  logger_->info(RSZ, 3237, "Runtime: {:.2f}s", timer.elapsed());
 }
 ////////////////////////////////////////////////////////////////
 void Resizer::swapArithModules(int path_count,

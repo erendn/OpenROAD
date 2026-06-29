@@ -14,6 +14,9 @@ add_library(rsz_lib
     BufferedNet.cc
     PreChecks.cc
     RecoverPower.cc
+    SkewAnalysis.cc
+    SkewScheduler.cc
+    SkewRealizer.cc
     RepairDesign.cc
     RepairHold.cc
     Rebuffer.cc

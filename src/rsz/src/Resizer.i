@@ -453,6 +453,44 @@ recover_power(float recover_power_percent, bool match_cell_footprint, bool verbo
 }
 
 ////////////////////////////////////////////////////////////////
+// Read-only useful-skew headroom analysis.
+// Negative budget_fraction uses the default sweep (unbounded plus 10, 5, 2.5,
+// 0 percent of the clock period); otherwise unbounded plus budget_fraction.
+void
+estimate_useful_skew(float budget_fraction, const char *dump_file, bool verbose)
+{
+  ensureLinked();
+  Resizer *resizer = getResizer();
+  std::vector<float> fractions;
+  if (budget_fraction < 0.0f) {
+    fractions = {-1.0f, 0.10f, 0.05f, 0.025f, 0.0f};
+  } else {
+    fractions = {-1.0f, budget_fraction};
+  }
+  resizer->estimateUsefulSkew(fractions, dump_file, verbose);
+}
+
+////////////////////////////////////////////////////////////////
+// Post-CTS useful-skew optimization (inserts clock delay buffers).
+void
+optimize_clock_skew(float budget_fraction,
+                    const char *buffer_cell_name,
+                    int max_buffers_per_reg,
+                    int max_buffer_count,
+                    int max_passes,
+                    bool verbose)
+{
+  ensureLinked();
+  Resizer *resizer = getResizer();
+  resizer->optimizeClockSkew(budget_fraction,
+                             buffer_cell_name,
+                             max_buffers_per_reg,
+                             max_buffer_count,
+                             max_passes,
+                             verbose);
+}
+
+////////////////////////////////////////////////////////////////
 
 // Rebuffer one net (for testing).
 // resizerPreamble() required.

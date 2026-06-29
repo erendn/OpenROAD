@@ -409,6 +409,78 @@ proc report_design_area { args } {
   utl::report "Design area ${area} um^2 ${util}% utilization."
 }
 
+sta::define_cmd_args "estimate_useful_skew" {[-budget_fraction fraction]\
+                                               [-dump_file filename]\
+                                               [-verbose]}
+
+# Read-only: estimate how much setup WNS could be recovered by clock skew
+# scheduling (useful skew), without modifying the netlist, clock or SDC.
+proc estimate_useful_skew { args } {
+  sta::parse_key_args "estimate_useful_skew" args \
+    keys {-budget_fraction -dump_file} \
+    flags {-verbose}
+
+  # Negative => default budget sweep {unbounded, 10%, 5%, 2.5%, 0%}.
+  set budget_fraction -1.0
+  if { [info exists keys(-budget_fraction)] } {
+    set budget_fraction $keys(-budget_fraction)
+    sta::check_positive_float "-budget_fraction" $budget_fraction
+  }
+  set dump_file ""
+  if { [info exists keys(-dump_file)] } {
+    set dump_file $keys(-dump_file)
+  }
+  set verbose [info exists flags(-verbose)]
+  sta::check_argc_eq0 "estimate_useful_skew" $args
+  rsz::estimate_useful_skew $budget_fraction $dump_file $verbose
+}
+
+sta::define_cmd_args "optimize_clock_skew" {[-budget_fraction fraction]\
+                                             [-buffer_cell buffer_cell]\
+                                             [-max_buffers_per_reg count]\
+                                             [-max_buffer_count count]\
+                                             [-max_passes count]\
+                                             [-verbose]}
+
+# Post-CTS useful-skew optimization: insert clock delay buffers to move setup
+# slack onto critical paths.  Run after clock_tree_synthesis; follow with
+# repair_timing -hold.
+proc optimize_clock_skew { args } {
+  sta::parse_key_args "optimize_clock_skew" args \
+    keys {-budget_fraction -buffer_cell -max_buffers_per_reg \
+          -max_buffer_count -max_passes} \
+    flags {-verbose}
+
+  set budget_fraction 0.10
+  if { [info exists keys(-budget_fraction)] } {
+    set budget_fraction $keys(-budget_fraction)
+    sta::check_positive_float "-budget_fraction" $budget_fraction
+  }
+  set buffer_cell ""
+  if { [info exists keys(-buffer_cell)] } {
+    set buffer_cell $keys(-buffer_cell)
+  }
+  set max_buffers_per_reg 4
+  if { [info exists keys(-max_buffers_per_reg)] } {
+    set max_buffers_per_reg $keys(-max_buffers_per_reg)
+    sta::check_positive_integer "-max_buffers_per_reg" $max_buffers_per_reg
+  }
+  set max_buffer_count 1000000
+  if { [info exists keys(-max_buffer_count)] } {
+    set max_buffer_count $keys(-max_buffer_count)
+    sta::check_positive_integer "-max_buffer_count" $max_buffer_count
+  }
+  set max_passes 5
+  if { [info exists keys(-max_passes)] } {
+    set max_passes $keys(-max_passes)
+    sta::check_positive_integer "-max_passes" $max_passes
+  }
+  set verbose [info exists flags(-verbose)]
+  sta::check_argc_eq0 "optimize_clock_skew" $args
+  rsz::optimize_clock_skew $budget_fraction $buffer_cell \
+    $max_buffers_per_reg $max_buffer_count $max_passes $verbose
+}
+
 sta::define_cmd_args "report_floating_nets" {[-verbose] [> filename] [>> filename]}
 
 sta::proc_redirect report_floating_nets {
