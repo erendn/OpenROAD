@@ -16,6 +16,7 @@
 #include "DelayEstimator.hh"
 #include "MoveCommitter.hh"
 #include "OptimizerTypes.hh"
+#include "RelocateGenerator.hh"
 #include "RepairSetupContext.hh"
 #include "RepairTargetCollector.hh"
 #include "RerouteGenerator.hh"
@@ -200,6 +201,8 @@ bool OptimizationPolicy::reportRepairSummary() const
       = committer_.summaryCommittedMoves(MoveType::kSizeUpMatch);
   const int reroute_moves
       = committer_.summaryCommittedMoves(MoveType::kReroute);
+  const int relocate_moves
+      = committer_.summaryCommittedMoves(MoveType::kRelocate);
 
   if (unbuffer_moves > 0) {
     repaired = true;
@@ -246,6 +249,10 @@ bool OptimizationPolicy::reportRepairSummary() const
     repaired = true;
     logger_->info(
         utl::RSZ, 53, "Rerouted {} nets resistance-aware.", reroute_moves);
+  }
+  if (relocate_moves > 0) {
+    repaired = true;
+    logger_->info(utl::RSZ, 54, "Relocated {} instances.", relocate_moves);
   }
 
   const sta::Slack worst_slack = sta_->worstSlack(max_);
@@ -326,6 +333,9 @@ void OptimizationPolicy::buildMoveGenerators(
         break;
       case MoveType::kReroute:
         generator = std::make_unique<RerouteGenerator>(context);
+        break;
+      case MoveType::kRelocate:
+        generator = std::make_unique<RelocateGenerator>(context);
         break;
       case MoveType::kCount:
         break;

@@ -110,6 +110,7 @@ enum class MoveType : uint8_t
   kUnbuffer,
   kSplitLoad,
   kReroute,
+  kRelocate,
   kCount
 };
 
@@ -211,6 +212,7 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   sta::dbNetwork* dbNetwork() const { return db_network_; }
   odb::dbBlock* block() const { return block_; }
   grt::GlobalRouter* globalRouter() const { return global_router_; }
+  dpl::Opendp* opendp() const { return opendp_; }
   est::EstimateParasitics* estimateParasitics() const
   {
     return estimate_parasitics_;
@@ -946,6 +948,7 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   est::EstimateParasitics* estimate_parasitics_ = nullptr;
   stt::SteinerTreeBuilder* stt_builder_ = nullptr;
   grt::GlobalRouter* global_router_ = nullptr;
+  dpl::Opendp* opendp_ = nullptr;
   sta::dbNetwork* db_network_ = nullptr;
   odb::dbDatabase* db_ = nullptr;
   odb::dbBlock* block_ = nullptr;
@@ -1005,8 +1008,6 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
   sta::InstanceSet inserted_buffer_set_;
   sta::InstanceSet all_inserted_buffer_set_;
   sta::InstanceSet removed_buffer_set_;
-
-  dpl::Opendp* opendp_ = nullptr;
 
   // "factor debatable"
   static constexpr float tgt_slew_load_cap_factor = 10.0;

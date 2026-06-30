@@ -6202,6 +6202,9 @@ MoveType Resizer::moveTypeFromString(const std::string& s)
   if (lower == "reroute") {
     return MoveType::kReroute;
   }
+  if (lower == "relocate") {
+    return MoveType::kRelocate;
+  }
   throw std::invalid_argument("Invalid move type: " + s);
 }
 

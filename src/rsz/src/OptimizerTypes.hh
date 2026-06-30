@@ -451,6 +451,8 @@ inline const char* moveName(const MoveType move_type)
       return "SplitLoadMove";
     case MoveType::kReroute:
       return "RerouteMove";
+    case MoveType::kRelocate:
+      return "RelocateMove";
     case MoveType::kCount:
       break;
   }
