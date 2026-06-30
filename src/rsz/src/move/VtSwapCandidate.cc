@@ -31,6 +31,11 @@ VtSwapCandidate::VtSwapCandidate(Resizer& resizer,
 {
 }
 
+Estimate VtSwapCandidate::estimate()
+{
+  return estimateCellSwap(best_cell_);
+}
+
 MoveResult VtSwapCandidate::apply()
 {
   return applyReplacement();

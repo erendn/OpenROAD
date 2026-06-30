@@ -23,6 +23,7 @@
 #include "SetupLegacyPolicy.hh"
 #include "SetupMt1Policy.hh"
 #include "SetupReroutePolicy.hh"
+#include "SetupScoreRankPolicy.hh"
 #include "SetupTnsPolicy.hh"
 #include "SetupWnsPolicy.hh"
 #include "est/EstimateParasitics.h"
@@ -50,10 +51,10 @@ namespace {
 bool isLegacyCompatiblePhase(const std::string_view phase_name)
 {
   return phase_name == "LEGACY" || phase_name == "LEGACY_MT"
-         || phase_name == "WNS" || phase_name == "WNS_PATH"
-         || phase_name == "WNS_CONE" || phase_name == "TNS"
-         || phase_name == "ENDPOINT_FANIN" || phase_name == "STARTPOINT_FANOUT"
-         || phase_name == "LAST_GASP";
+         || phase_name == "SCORE_RANK" || phase_name == "WNS"
+         || phase_name == "WNS_PATH" || phase_name == "WNS_CONE"
+         || phase_name == "TNS" || phase_name == "ENDPOINT_FANIN"
+         || phase_name == "STARTPOINT_FANOUT" || phase_name == "LAST_GASP";
 }
 
 bool containsPhase(const std::vector<std::string>& phase_names,
@@ -140,6 +141,10 @@ std::unique_ptr<OptimizationPolicy> Optimizer::makePolicyForPhase(
   }
   if (phase_name == "MEASURED_VT_SWAP") {
     return std::make_unique<MeasuredVtSwapPolicy>(
+        resizer_, committer_, setup_context, config_);
+  }
+  if (phase_name == "SCORE_RANK") {
+    return std::make_unique<SetupScoreRankPolicy>(
         resizer_, committer_, setup_context, config_);
   }
   if (phase_name == "GLOBAL_SIZING") {

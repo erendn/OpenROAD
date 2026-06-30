@@ -34,8 +34,15 @@ SwapPinsCandidate::SwapPinsCandidate(Resizer& resizer,
 
 Estimate SwapPinsCandidate::estimate()
 {
-  const float score = delay_state_.current_delay - delay_state_.swap_delay;
-  return {.legal = score > 0.0f, .score = score};
+  // The generator pre-computed both arc delays; the improvement is the
+  // reduction from routing the critical signal through the faster pin.
+  const float delta_arrival
+      = delay_state_.current_delay - delay_state_.swap_delay;
+  return {.legal = delta_arrival > 0.0f,
+          .score = delta_arrival,
+          .delta_arrival = delta_arrival,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult SwapPinsCandidate::apply()

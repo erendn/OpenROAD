@@ -33,6 +33,7 @@ class SizeUpMatchCandidate : public MoveCandidate
                        sta::LibertyCell* replacement);
 
   // === MoveCandidate API ====================================================
+  Estimate estimate() override;
   MoveResult apply() override;
   MoveType type() const override { return MoveType::kSizeUpMatch; }
 

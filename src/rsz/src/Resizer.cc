@@ -7059,7 +7059,8 @@ bool Resizer::estimateInputSlewImpact(
   return true;
 }
 
-bool Resizer::estimatedSlackOK(const rsz::SlackEstimatorParams& params)
+bool Resizer::estimatedSlackOK(const rsz::SlackEstimatorParams& params,
+                               float* net_arrival_delta)
 {
   if (params.scene == nullptr) {
     return false;
@@ -7212,6 +7213,11 @@ bool Resizer::estimatedSlackOK(const rsz::SlackEstimatorParams& params)
              "buffer {} can be removed because direct fanouts and side fanouts "
              "can absorb delay/slew degradation",
              db_network_->name(params.driver));
+  // Surface the path-arrival delta to callers that want a delta_arrival
+  // estimate (UnbufferCandidate): + = arrival improved.
+  if (net_arrival_delta != nullptr) {
+    *net_arrival_delta = delay_imp - delay_degrad;
+  }
   return true;
 }
 

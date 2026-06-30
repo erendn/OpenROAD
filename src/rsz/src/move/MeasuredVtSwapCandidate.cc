@@ -44,7 +44,11 @@ MeasuredVtSwapCandidate::MeasuredVtSwapCandidate(
 Estimate MeasuredVtSwapCandidate::estimate()
 {
   if (!resizer_.replacementPreservesMaxCap(inst_, candidate_cell_)) {
-    return {.legal = false, .score = 0.0f};
+    return {.legal = false,
+            .score = 0.0f,
+            .delta_arrival = 0.0f,
+            .scope = EstimateScope::kLocal,
+            .estimated = true};
   }
 
   // Evaluate the swap on a temporary journaled edit so the database can be
@@ -53,17 +57,27 @@ Estimate MeasuredVtSwapCandidate::estimate()
   const float before_delay = arrivalDelay();
   if (!resizer_.replaceCell(inst_, candidate_cell_)) {
     restoreEstimateJournal(false);
-    return {.legal = false, .score = 0.0f};
+    return {.legal = false,
+            .score = 0.0f,
+            .delta_arrival = 0.0f,
+            .scope = EstimateScope::kLocal,
+            .estimated = true};
   }
 
   resizer_.updateParasiticsAndTiming();
   const float after_delay = arrivalDelay();
   restoreEstimateJournal(true);
 
-  const float score = before_delay - after_delay;
+  // arrivalDelay() returns endpoint arrival in seconds, so before - after is a
+  // real measured delta_arrival (+ = arrival improved).
+  const float delta_arrival = before_delay - after_delay;
   // Keep the raw score even for non-improving swaps so policy ranking can
   // compare rejected candidates consistently.
-  return {.legal = score > 0.0f, .score = score};
+  return {.legal = delta_arrival > 0.0f,
+          .score = delta_arrival,
+          .delta_arrival = delta_arrival,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult MeasuredVtSwapCandidate::apply()

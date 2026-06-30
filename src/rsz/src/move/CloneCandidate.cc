@@ -32,7 +32,8 @@ CloneCandidate::CloneCandidate(Resizer& resizer,
                                sta::LibertyCell* original_cell,
                                sta::LibertyCell* clone_cell,
                                const odb::Point& clone_loc,
-                               std::vector<sta::Pin*> moved_loads)
+                               std::vector<sta::Pin*> moved_loads,
+                               const float delta_arrival)
     : MoveCandidate(resizer, target),
       drvr_pin_(drvr_pin),
       drvr_inst_(drvr_inst),
@@ -40,8 +41,21 @@ CloneCandidate::CloneCandidate(Resizer& resizer,
       original_cell_(original_cell),
       clone_cell_(clone_cell),
       clone_loc_(clone_loc),
-      moved_loads_(std::move(moved_loads))
+      moved_loads_(std::move(moved_loads)),
+      delta_arrival_(delta_arrival)
 {
+}
+
+Estimate CloneCandidate::estimate()
+{
+  // CloneGenerator pre-computed the driver speedup from shedding the moved
+  // loads' input capacitance via Resizer::gateDelay. Feasibility was vetted
+  // there too, so `legal` stays true.
+  return {.legal = true,
+          .score = delta_arrival_,
+          .delta_arrival = delta_arrival_,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult CloneCandidate::apply()

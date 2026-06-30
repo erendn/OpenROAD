@@ -22,15 +22,31 @@ SizeDownFanoutCandidate::SizeDownFanoutCandidate(Resizer& resizer,
                                                  sta::Pin* load_pin,
                                                  sta::LibertyCell* current_cell,
                                                  sta::LibertyCell* replacement,
-                                                 sta::Slack slack)
+                                                 sta::Slack slack,
+                                                 const float worst_delay_change)
     : MoveCandidate(resizer, target),
       drvr_pin_(drvr_pin),
       inst_(inst),
       load_pin_(load_pin),
       current_cell_(current_cell),
       replacement_(replacement),
-      slack_(slack)
+      slack_(slack),
+      worst_delay_change_(worst_delay_change)
 {
+}
+
+Estimate SizeDownFanoutCandidate::estimate()
+{
+  // SizeDownFanoutGenerator already computed the move's net local delay change
+  // for the chosen cell. A positive worst_delay_change_ means a stage slowed
+  // down, so the arrival delta is its negation -- typically negative, since a
+  // size-down spends timing for area/leakage. Feasibility (delay budget) was
+  // already vetted by the generator, so `legal` stays true.
+  return {.legal = true,
+          .score = -worst_delay_change_,
+          .delta_arrival = -worst_delay_change_,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult SizeDownFanoutCandidate::apply()

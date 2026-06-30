@@ -664,6 +664,12 @@ std::unique_ptr<MoveCandidate> buildCandidate(const SizeDownFanoutContext& ctx,
     return nullptr;
   }
 
+  // Recompute the net local delay change for the chosen cell so the candidate
+  // can report it as a timing estimate; the generator otherwise discards it
+  // after the budget check.
+  const float worst_delay_change
+      = computeWorstDelayChange(ctx, load_ctx, profile, replacement);
+
   return std::make_unique<SizeDownFanoutCandidate>(ctx.resizer,
                                                    ctx.target,
                                                    ctx.drvr_pin,
@@ -671,7 +677,8 @@ std::unique_ptr<MoveCandidate> buildCandidate(const SizeDownFanoutContext& ctx,
                                                    load_ctx.load_pin,
                                                    load_ctx.load_cell,
                                                    replacement,
-                                                   load_ctx.load_slack);
+                                                   load_ctx.load_slack,
+                                                   worst_delay_change);
 }
 
 std::vector<std::unique_ptr<MoveCandidate>> buildCandidates(

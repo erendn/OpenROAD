@@ -27,6 +27,11 @@ SizeUpCandidate::SizeUpCandidate(Resizer& resizer,
 {
 }
 
+Estimate SizeUpCandidate::estimate()
+{
+  return estimateCellSwap(replacement_);
+}
+
 MoveResult SizeUpCandidate::apply()
 {
   prepare();

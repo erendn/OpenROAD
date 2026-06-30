@@ -37,6 +37,7 @@ add_library(rsz_lib
     policy/SetupWnsPolicy.cc
     policy/SetupMt1Policy.cc
     policy/SetupReroutePolicy.cc
+    policy/SetupScoreRankPolicy.cc
     policy/GlobalSizingPolicy.cc
     Resizer.cc
     OdbCallBack.cc

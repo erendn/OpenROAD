@@ -867,7 +867,13 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
       bool accept_if_slack_improves);
   bool canRemoveBuffer(sta::Instance* buffer, bool honor_dont_touch_fixed);
   bool removeBuffer(sta::Instance* buffer);
-  bool estimatedSlackOK(const rsz::SlackEstimatorParams& params);
+  // When `net_arrival_delta` is non-null and the function returns true,
+  // the out-param receives the move's local arrival-time delta in seconds
+  // (delay_imp - delay_degrad; positive means arrival improved). Useful for
+  // surfacing the internally-computed delay impact to UnbufferCandidate
+  // without recomputing it.
+  bool estimatedSlackOK(const rsz::SlackEstimatorParams& params,
+                        float* net_arrival_delta = nullptr);
   BufferedNetPtr makeBufferedNet(const sta::Pin* drvr_pin,
                                  const sta::Scene* scene);
   BufferedNetPtr makeBufferedNetSteiner(const sta::Pin* drvr_pin,

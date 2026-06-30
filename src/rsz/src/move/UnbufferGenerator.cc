@@ -62,6 +62,8 @@ struct UnbufferSelectionContext
   const sta::Scene* scene{nullptr};
   const sta::Scene* slack_scene{nullptr};
   const sta::MinMax* min_max{nullptr};
+  // Captured by passesSlackGuard from estimatedSlackOK's out-param
+  float net_arrival_delta{0.0f};
 };
 
 bool validTarget(const Target& target)
@@ -224,7 +226,7 @@ bool passesCapGuard(UnbufferSelectionContext& ctx)
   return false;
 }
 
-bool passesSlackGuard(const UnbufferSelectionContext& ctx)
+bool passesSlackGuard(UnbufferSelectionContext& ctx)
 {
   SlackEstimatorParams params(ctx.setup_slack_margin, ctx.slack_scene);
   params.driver_pin = ctx.drvr_pin;
@@ -234,7 +236,9 @@ bool passesSlackGuard(const UnbufferSelectionContext& ctx)
   params.driver_path = ctx.target.driverPath(ctx.resizer);
   params.prev_driver_path = ctx.prev_drvr_path;
   params.driver_cell = ctx.drvr_cell;
-  return ctx.resizer.estimatedSlackOK(params);
+  // Capture the path-arrival delta the function computes internally so the
+  // candidate can surface it as delta_arrival.
+  return ctx.resizer.estimatedSlackOK(params, &ctx.net_arrival_delta);
 }
 
 bool isEligible(UnbufferSelectionContext& ctx)
@@ -316,8 +320,8 @@ std::vector<std::unique_ptr<MoveCandidate>> UnbufferGenerator::generate(
     return candidates;
   }
 
-  candidates.push_back(
-      std::make_unique<UnbufferCandidate>(resizer_, target, ctx.drvr));
+  candidates.push_back(std::make_unique<UnbufferCandidate>(
+      resizer_, target, ctx.drvr, ctx.net_arrival_delta));
   return candidates;
 }
 

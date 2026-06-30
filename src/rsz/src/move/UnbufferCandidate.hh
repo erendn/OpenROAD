@@ -18,23 +18,31 @@ namespace rsz {
 //
 // The generator pre-checks that the buffer has a single output, that the
 // downstream capacitance stays within max-cap limits, and that local slack
-// is sufficient.  apply() calls Resizer::removeBuffer to short-circuit the
-// buffer's input and output nets and delete the instance.
+// is sufficient.
+//
+// estimate() surfaces the path-arrival delta that Resizer::estimatedSlackOK
+// already computed during the eligibility check.
+//
+// apply() calls Resizer::removeBuffer to short-circuit the buffer's input and
+// output nets and delete the instance.
 class UnbufferCandidate : public MoveCandidate
 {
  public:
   // === Construction =========================================================
   UnbufferCandidate(Resizer& resizer,
                     const Target& target,
-                    sta::Instance* drvr);
+                    sta::Instance* drvr,
+                    float net_arrival_delta);
 
   // === MoveCandidate API ====================================================
+  Estimate estimate() override;
   MoveResult apply() override;
   MoveType type() const override { return MoveType::kUnbuffer; }
 
  private:
   // === Candidate state ======================================================
   sta::Instance* drvr_{nullptr};
+  float net_arrival_delta_{0.0f};
 };
 
 }  // namespace rsz

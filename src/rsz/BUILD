@@ -128,6 +128,8 @@ cc_library(
         "src/policy/SetupMt1Policy.hh",
         "src/policy/SetupReroutePolicy.cc",
         "src/policy/SetupReroutePolicy.hh",
+        "src/policy/SetupScoreRankPolicy.cc",
+        "src/policy/SetupScoreRankPolicy.hh",
         "src/policy/SetupTnsPolicy.cc",
         "src/policy/SetupTnsPolicy.hh",
         "src/policy/SetupWnsPolicy.cc",

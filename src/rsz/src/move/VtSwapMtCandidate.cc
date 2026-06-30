@@ -22,12 +22,20 @@ namespace {
 
 Estimate makeRejectedEstimate(const float score = 0.0f)
 {
-  return {.legal = false, .score = score};
+  return {.legal = false,
+          .score = score,
+          .delta_arrival = score,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 Estimate makeAcceptedEstimate(const float score)
 {
-  return {.legal = true, .score = score};
+  return {.legal = true,
+          .score = score,
+          .delta_arrival = score,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 const char* applyLogFormat(const bool accepted)

@@ -14,9 +14,24 @@ namespace rsz {
 
 UnbufferCandidate::UnbufferCandidate(Resizer& resizer,
                                      const Target& target,
-                                     sta::Instance* drvr)
-    : MoveCandidate(resizer, target), drvr_(drvr)
+                                     sta::Instance* drvr,
+                                     const float net_arrival_delta)
+    : MoveCandidate(resizer, target),
+      drvr_(drvr),
+      net_arrival_delta_(net_arrival_delta)
 {
+}
+
+Estimate UnbufferCandidate::estimate()
+{
+  // The generator's slack guard (Resizer::estimatedSlackOK) already vetted
+  // feasibility and computed the path-arrival delta. Surface that value as
+  // delta_arrival without recomputing it.
+  return {.legal = true,
+          .score = net_arrival_delta_,
+          .delta_arrival = net_arrival_delta_,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult UnbufferCandidate::apply()

@@ -19,9 +19,11 @@ namespace rsz {
 // Candidate that replaces one instance with a faster VT-equivalent Liberty
 // cell (e.g., HVT → SVT or SVT → LVT within the same footprint).
 //
-// Used by the legacy single-threaded VtSwapGenerator.  This move uses the base
-// legal placeholder estimate; the legacy path relies on the generator's
-// best-cell selection being legal.  apply() performs Resizer::replaceCell.
+// Used by the legacy single-threaded VtSwapGenerator.
+//
+// estimate() scores the local timing impact of the swap with DelayEstimator.
+//
+// apply() performs Resizer::replaceCell.
 class VtSwapCandidate : public MoveCandidate
 {
  public:
@@ -34,6 +36,7 @@ class VtSwapCandidate : public MoveCandidate
                   sta::LibertyCell* best_cell);
 
   // === MoveCandidate API ====================================================
+  Estimate estimate() override;
   MoveResult apply() override;
   MoveType type() const override { return MoveType::kVtSwap; }
 

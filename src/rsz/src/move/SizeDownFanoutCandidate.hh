@@ -19,7 +19,12 @@ namespace rsz {
 //
 // The generator pre-screens loads on the driver's net and picks a weaker
 // cell that reduces area/leakage while staying within the available slack
-// budget. apply() performs the cell swap via Resizer::replaceCell.
+// budget.
+//
+// estimate() reports the generator-computed local delay change as a
+// delta_arrival.
+//
+// apply() performs the cell swap via Resizer::replaceCell.
 class SizeDownFanoutCandidate : public MoveCandidate
 {
  public:
@@ -31,9 +36,11 @@ class SizeDownFanoutCandidate : public MoveCandidate
                           sta::Pin* load_pin,
                           sta::LibertyCell* current_cell,
                           sta::LibertyCell* replacement,
-                          sta::Slack slack);
+                          sta::Slack slack,
+                          float worst_delay_change);
 
   // === MoveCandidate API ====================================================
+  Estimate estimate() override;
   MoveResult apply() override;
   MoveType type() const override { return MoveType::kSizeDownFanout; }
 
@@ -45,6 +52,7 @@ class SizeDownFanoutCandidate : public MoveCandidate
   sta::LibertyCell* current_cell_{nullptr};
   sta::LibertyCell* replacement_{nullptr};
   sta::Slack slack_{0.0};
+  float worst_delay_change_{0.0f};
 };
 
 }  // namespace rsz

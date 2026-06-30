@@ -20,7 +20,10 @@
 #include "sta/Delay.hh"
 #include "sta/Graph.hh"
 #include "sta/GraphClass.hh"
+#include "sta/GraphDelayCalc.hh"
 #include "sta/Liberty.hh"
+#include "sta/LibertyClass.hh"
+#include "sta/MinMax.hh"
 #include "sta/Network.hh"
 #include "sta/Path.hh"
 #include "sta/Transition.hh"
@@ -160,6 +163,55 @@ std::vector<sta::Pin*> selectMovedLoads(
   return moved_loads;
 }
 
+float computeCloneDeltaArrival(Resizer& resizer,
+                               const Target& target,
+                               sta::Pin* drvr_pin,
+                               const std::vector<sta::Pin*>& moved_loads)
+{
+  // Estimate the driver-stage speedup from shedding the moved loads' input
+  // capacitance. Critical path stays on the original driver (the worst-slack
+  // load sorts out of the moved set), so this delta lives on the target path.
+  // Wire-cap redistribution is ignored (MVP) -- same simplification
+  // SizeDownGenerator::computeDriverDelayDelta makes.
+  if (moved_loads.empty()) {
+    return 0.0f;
+  }
+  const sta::Scene* scene = target.activeScene(resizer);
+  const sta::MinMax* min_max = target.minMax(resizer);
+  if (scene == nullptr || min_max == nullptr) {
+    return 0.0f;
+  }
+  sta::LibertyPort* drvr_port = resizer.network()->libertyPort(drvr_pin);
+  if (drvr_port == nullptr) {
+    return 0.0f;
+  }
+
+  const float old_load_cap
+      = resizer.sta()->graphDelayCalc()->loadCap(drvr_pin, scene, min_max);
+  const int lib_ap = scene->libertyIndex(min_max);
+
+  float moved_cap = 0.0f;
+  for (sta::Pin* load_pin : moved_loads) {
+    sta::LibertyPort* load_port = resizer.network()->libertyPort(load_pin);
+    if (load_port == nullptr) {
+      continue;
+    }
+    const sta::LibertyPort* scene_load_port
+        = static_cast<const sta::LibertyPort*>(load_port)->scenePort(lib_ap);
+    if (scene_load_port == nullptr) {
+      continue;
+    }
+    moved_cap += scene_load_port->capacitance();
+  }
+
+  const float new_load_cap = std::max(old_load_cap - moved_cap, 0.0f);
+  const float old_delay
+      = resizer.gateDelay(drvr_port, old_load_cap, scene, min_max);
+  const float new_delay
+      = resizer.gateDelay(drvr_port, new_load_cap, scene, min_max);
+  return old_delay - new_delay;  // positive means arrival improved
+}
+
 odb::Point computeCloneLocation(Resizer& resizer,
                                 sta::Pin* drvr_pin,
                                 const std::vector<FanoutSlack>& fanout_slacks)
@@ -235,16 +287,18 @@ std::vector<std::unique_ptr<MoveCandidate>> CloneGenerator::generate(
 
   const odb::Point clone_loc
       = computeCloneLocation(resizer_, drvr_pin, fanout_slacks);
-  candidates.push_back(
-      std::make_unique<CloneCandidate>(resizer_,
-                                       target,
-                                       drvr_pin,
-                                       drvr_inst,
-                                       parent,
-                                       original_cell,
-                                       clone_cell,
-                                       clone_loc,
-                                       std::move(moved_loads)));
+  const float delta_arrival
+      = computeCloneDeltaArrival(resizer_, target, drvr_pin, moved_loads);
+  candidates.push_back(std::make_unique<CloneCandidate>(resizer_,
+                                                        target,
+                                                        drvr_pin,
+                                                        drvr_inst,
+                                                        parent,
+                                                        original_cell,
+                                                        clone_cell,
+                                                        clone_loc,
+                                                        std::move(moved_loads),
+                                                        delta_arrival));
   return candidates;
 }
 

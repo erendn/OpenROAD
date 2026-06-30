@@ -17,10 +17,14 @@ namespace rsz {
 // Candidate that replaces a path driver with a stronger same-family cell.
 //
 // The legacy SizeUpGenerator picks one replacement using drive-strength
-// heuristics.  This move uses the base legal placeholder estimate; apply()
-// performs Resizer::replaceCell and reports the touched instance.  Unlike
-// SizeUpMtCandidate, this variant runs single-threaded and resolves its driver
-// cell lazily via prepare().
+// heuristics.
+//
+// estimate() scores the local timing impact of that swap with DelayEstimator.
+//
+// apply() performs Resizer::replaceCell and reports the touched instance.
+//
+// Unlike SizeUpMtCandidate, this variant runs single-threaded and resolves its
+// driver cell lazily via prepare().
 class SizeUpCandidate : public MoveCandidate
 {
  public:
@@ -32,6 +36,7 @@ class SizeUpCandidate : public MoveCandidate
                   sta::LibertyCell* replacement);
 
   // === MoveCandidate API ====================================================
+  Estimate estimate() override;
   MoveResult apply() override;
   MoveType type() const override { return MoveType::kSizeUp; }
 

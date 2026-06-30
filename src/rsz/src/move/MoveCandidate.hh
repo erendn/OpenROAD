@@ -6,6 +6,10 @@
 #include "OptimizerTypes.hh"
 #include "rsz/Resizer.hh"
 
+namespace sta {
+class LibertyCell;
+}  // namespace sta
+
 namespace rsz {
 
 // === Move candidate interface ==============================================
@@ -40,6 +44,14 @@ class MoveCandidate
   MoveCandidate(Resizer& resizer, const Target& target);
   const Target& target() const { return target_; }
   MoveResult rejectedMove() const;
+
+  // Estimate the local timing impact of a topology-preserving swap of the
+  // target driver cell (size-up, size-up-match, VT-swap). Reuses the prepared
+  // ArcDelayState when an MT policy supplied one, otherwise builds it lazily on
+  // the calling thread. `legal` is always true here -- the generator has
+  // already vetted feasibility -- while delta_arrival/score carry the
+  // DelayEstimator timing estimate.
+  Estimate estimateCellSwap(const sta::LibertyCell* replacement);
 
   // === Candidate identity ===================================================
   Resizer& resizer_;

@@ -11,6 +11,8 @@
 #include "grt/GlobalRouter.h"
 #include "odb/db.h"
 #include "rsz/Resizer.hh"
+#include "sta/GraphDelayCalc.hh"
+#include "sta/MinMax.hh"
 #include "sta/Network.hh"
 #include "utl/Logger.h"
 
@@ -36,7 +38,24 @@ RerouteCandidate::RerouteCandidate(Resizer& resizer,
 
 Estimate RerouteCandidate::estimate()
 {
-  return {.legal = true, .score = current_resistance_ - estimated_resistance_};
+  // Convert the wire resistance reduction into a path-arrival delta with a
+  // lumped Elmore step (delta_R * C_load). Coarse on purpose -- a real
+  // distributed-RC wire delay would account for the resistance being
+  // distributed along the routing tree -- but it produces an honest
+  // seconds-valued estimate for ranking.
+  const sta::Scene* scene = target_.activeScene(resizer_);
+  const sta::MinMax* min_max = target_.minMax(resizer_);
+  float delta_arrival = 0.0f;
+  if (scene != nullptr && min_max != nullptr) {
+    const float load_cap = resizer_.sta()->graphDelayCalc()->loadCap(
+        driver_pin_, scene, min_max);
+    delta_arrival = (current_resistance_ - estimated_resistance_) * load_cap;
+  }
+  return {.legal = true,
+          .score = delta_arrival,
+          .delta_arrival = delta_arrival,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult RerouteCandidate::apply()

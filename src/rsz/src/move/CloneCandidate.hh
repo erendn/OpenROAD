@@ -24,10 +24,16 @@ namespace rsz {
 // Candidate that duplicates a driver instance (gate cloning) and reassigns
 // a selected load subset to the clone's output.
 //
-// apply() creates the clone, copies all input connections, rewires the
-// selected load pins to the clone output, and updates parasitic estimates.
-// The clone placement (clone_loc_) is pre-computed by the generator as the
-// centroid of the moved loads.  Single-threaded only; mutates OpenDB.
+// estimate() reports the driver-stage speedup from shedding the moved loads'
+// input capacitance; the value is pre-computed by the generator with the
+// table-model gate delay at the old vs. new load cap.
+//
+// apply() creates the clone, copies all input connections, rewires the selected
+// load pins to the clone output, and updates parasitic estimates. The clone
+// placement (clone_loc_) is pre-computed by the generator as the centroid of
+// the moved loads.
+//
+// Single-threaded only; mutates odb.
 class CloneCandidate : public MoveCandidate
 {
  public:
@@ -40,9 +46,11 @@ class CloneCandidate : public MoveCandidate
                  sta::LibertyCell* original_cell,
                  sta::LibertyCell* clone_cell,
                  const odb::Point& clone_loc,
-                 std::vector<sta::Pin*> moved_loads);
+                 std::vector<sta::Pin*> moved_loads,
+                 float delta_arrival);
 
   // === MoveCandidate API ====================================================
+  Estimate estimate() override;
   MoveResult apply() override;
   MoveType type() const override { return MoveType::kClone; }
 
@@ -66,6 +74,7 @@ class CloneCandidate : public MoveCandidate
   sta::Net* out_net_{nullptr};
   odb::Point clone_loc_;
   std::vector<sta::Pin*> moved_loads_;
+  float delta_arrival_{0.0f};
 };
 
 }  // namespace rsz

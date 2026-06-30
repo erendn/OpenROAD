@@ -317,6 +317,15 @@ struct SlackEstimatorParams
   const sta::Scene* scene;
 };
 
+// Spatial scope a timing estimate was measured over.
+//   kLocal  : only the stage(s) the move directly perturbs.
+//   kWindow : a fanin/fanout path window around the move (future use).
+enum class EstimateScope : uint8_t
+{
+  kLocal,
+  kWindow
+};
+
 // Move-local score reported by MoveCandidate::estimate() before an ECO is
 // committed.
 //
@@ -328,10 +337,26 @@ struct SlackEstimatorParams
 //                    Policies compare scores across candidates of possibly
 //                    different types; policies keep scores comparable across
 //                    the move types they evaluate together.
+//
+// `score` is an abstract, policy-chosen ranking metric. `delta_arrival` is a
+// raw measured impact with fixed units (seconds), independent of how `score`
+// is derived; a timing-priority policy derives `score` from it.
 struct Estimate
 {
   bool legal{false};
   float score{0.0f};
+  // Estimated change in arrival time (seconds) on the path the move most
+  // directly affects. Positive means the signal arrives earlier (timing
+  // improved); negative means the move spends timing.
+  float delta_arrival{0.0f};
+  // Spatial scope `delta_arrival` was measured over.
+  EstimateScope scope{EstimateScope::kLocal};
+  // True when the candidate actually produced a timing estimate (delta_arrival
+  // / score is meaningful). Candidates that still return the base placeholder
+  // leave this false, which lets a score-ranking policy distinguish "no
+  // estimate" from "estimate is zero" and keep unestimated moves in a tier-2
+  // fallback rather than letting them compete on a zero score.
+  bool estimated{false};
 };
 
 // Result of applying one candidate ECO (MoveCandidate::apply()).  The

@@ -40,7 +40,11 @@ Estimate SizeUpMtCandidate::estimate()
   // worker pool runs candidate estimation.
   const DelayEstimate delay_est
       = DelayEstimator::estimate(arc_delay_, replacement_);
-  return {.legal = delay_est.legal, .score = delay_est.arrival_impr};
+  return {.legal = delay_est.legal,
+          .score = delay_est.arrival_impr,
+          .delta_arrival = delay_est.arrival_impr,
+          .scope = EstimateScope::kLocal,
+          .estimated = true};
 }
 
 MoveResult SizeUpMtCandidate::apply()
