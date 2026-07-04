@@ -20,14 +20,14 @@ namespace rsz {
 // applicable candidate, partitions them into two tiers, and commits the best
 // one.
 //
-//   Tier 1: Candidates whose Estimate.estimated == true.
+//   Tier 1: Candidates whose Estimate.estimated == false (today: BufferMove,
+//           SplitLoadMove). Tried in legacy -sequence order so they keep their
+//           existing priority without being sentinel-favored.
+//   Tier 2: Candidates whose Estimate.estimated == true.
 //           Ranked by Estimate.score (descending). No threshold -- a negative
 //           score is still preferred over Tier 2 because the estimator may be
 //           wrong in direction at this stage and we use it only to rank, not to
 //           gate.
-//   Tier 2: Candidates whose Estimate.estimated == false (today: BufferMove,
-//           SplitLoadMove). Tried in legacy -sequence order so they keep their
-//           existing priority without being sentinel-favored.
 //
 // On commit-time rejection inside Tier 1 (for example a max-cap re-check flip),
 // the policy falls through to the next Tier 1 candidate and only falls into

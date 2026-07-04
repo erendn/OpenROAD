@@ -98,15 +98,6 @@ bool SetupScoreRankPolicy::tryRepairTarget(
     }
   }
 
-  // Tier 1: Estimated candidates ranked by score (descending). No threshold:
-  // estimates may be wrong in direction at this stage, so we only use them to
-  // order candidates, not to reject any.
-  std::ranges::stable_sort(
-      estimated_pool,
-      [](const ScoredCandidate& lhs, const ScoredCandidate& rhs) {
-        return lhs.estimate.score > rhs.estimate.score;
-      });
-
   // Commit attempt helper -- shared between the two tiers.
   auto tryCommit = [&](ScoredCandidate& entry) -> bool {
     committer_.trackMoveAttempt(live_target.driver_pin, entry.type);
@@ -119,20 +110,7 @@ bool SetupScoreRankPolicy::tryRepairTarget(
     return true;
   };
 
-  for (ScoredCandidate& entry : estimated_pool) {
-    debugPrint(logger_,
-               RSZ,
-               "score_rank",
-               3,
-               "Tier1 candidate move={} score={:e}",
-               moveName(entry.type),
-               entry.estimate.score);
-    if (tryCommit(entry)) {
-      return true;
-    }
-  }
-
-  // Tier 2: Unestimated candidates in legacy -sequence order. Reached only once
+  // Tier 1: Unestimated candidates in legacy -sequence order. Reached only once
   // every estimated candidate has been tried and rejected at commit time, so
   // BufferMove / SplitLoadMove keep their existing priority while estimated
   // moves get first refusal.
@@ -143,6 +121,28 @@ bool SetupScoreRankPolicy::tryRepairTarget(
                3,
                "Tier2 candidate move={}",
                moveName(entry.type));
+    if (tryCommit(entry)) {
+      return true;
+    }
+  }
+
+  // Tier 2: Estimated candidates ranked by score (descending). No threshold:
+  // estimates may be wrong in direction at this stage, so we only use them to
+  // order candidates, not to reject any.
+  std::ranges::stable_sort(
+      estimated_pool,
+      [](const ScoredCandidate& lhs, const ScoredCandidate& rhs) {
+        return lhs.estimate.score > rhs.estimate.score;
+      });
+
+  for (ScoredCandidate& entry : estimated_pool) {
+    debugPrint(logger_,
+               RSZ,
+               "score_rank",
+               3,
+               "Tier1 candidate move={} score={:e}",
+               moveName(entry.type),
+               entry.estimate.score);
     if (tryCommit(entry)) {
       return true;
     }
