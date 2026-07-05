@@ -67,6 +67,13 @@ RelocateGenerator::RelocateGenerator(const GeneratorContext& context)
   // 0 (default) reproduces the negative-slack-only centroid; the back-off
   // guard provides correctness regardless of this value.
   slack_band_ = utl::readEnvarDouble("RSZ_RELOCATE_SLACK_BAND", 0.0);
+  min_move_dbu_
+      = utl::readEnvarInt("RSZ_RELOCATE_MIN_MOVE_DBU", kMinMoveThresholdDbu);
+  use_elmore_ = utl::readEnvarInt("RSZ_RELOCATE_ELMORE", 1) != 0;
+  legalize_ = utl::readEnvarInt("RSZ_RELOCATE_LEGALIZE", 1) != 0;
+  max_skew_dbu_
+      = utl::readEnvarInt("RSZ_RELOCATE_MAX_SKEW_DBU",
+                          RelocateCandidate::kPlacementDisplacementLimitDbu);
 }
 
 bool RelocateGenerator::isApplicable(const Target& target) const
@@ -140,7 +147,9 @@ std::vector<std::unique_ptr<MoveCandidate>> RelocateGenerator::generate(
       drvr_pin,
       orig_loc,
       requested_loc,
-      static_cast<float>(run_config_.setup_slack_margin)));
+      static_cast<float>(run_config_.setup_slack_margin),
+      legalize_,
+      max_skew_dbu_));
   return candidates;
 }
 
@@ -210,14 +219,14 @@ bool RelocateGenerator::computeTargetLocation(const Target& gen_target,
   const double C_pin_Sw = weighted_pin_cap / total_weight;
 
   const int centroid_dist = manhattan(centroid, drvr_loc);
-  if (centroid_dist < kMinMoveThresholdDbu) {
+  if (centroid_dist < min_move_dbu_) {
     debugPrint(resizer_.logger(),
                RSZ,
                "relocate_move",
                2,
                "REJECT RelocateMove: centroid HPWL {} < min threshold {}",
                centroid_dist,
-               kMinMoveThresholdDbu);
+               min_move_dbu_);
     return false;
   }
 
@@ -230,7 +239,7 @@ bool RelocateGenerator::computeTargetLocation(const Target& gen_target,
   // when all upstream inputs and a wire RC model are available; otherwise the
   // requested location is the plain centroid.
   auto elmore_target = [&]() -> std::optional<odb::Point> {
-    if (R_w <= 0.0 || C_w <= 0.0) {
+    if (!use_elmore_ || R_w <= 0.0 || C_w <= 0.0) {
       return std::nullopt;
     }
     const sta::Path* in_path = gen_target.inputPath(resizer_);
@@ -293,14 +302,14 @@ bool RelocateGenerator::computeTargetLocation(const Target& gen_target,
   const odb::Point requested = elmore_target.value_or(centroid);
 
   const int target_dist = manhattan(requested, drvr_loc);
-  if (target_dist < kMinMoveThresholdDbu) {
+  if (target_dist < min_move_dbu_) {
     debugPrint(resizer_.logger(),
                RSZ,
                "relocate_move",
                2,
                "REJECT RelocateMove: target HPWL {} < min threshold {}",
                target_dist,
-               kMinMoveThresholdDbu);
+               min_move_dbu_);
     return false;
   }
 
@@ -314,7 +323,7 @@ bool RelocateGenerator::computeTargetLocation(const Target& gen_target,
                2,
                "REJECT RelocateMove: safe-sink back-off shrank move below "
                "min threshold {}",
-               kMinMoveThresholdDbu);
+               min_move_dbu_);
     return false;
   }
 
@@ -357,7 +366,7 @@ bool RelocateGenerator::backOffForSafeSinks(
   // to guard against, so honor the requested target unchanged.
   if (wire_res <= 0.0 || wire_cap <= 0.0 || safe_sinks.empty()) {
     out_target = requested;
-    return manhattan(orig, out_target) >= kMinMoveThresholdDbu;
+    return manhattan(orig, out_target) >= min_move_dbu_;
   }
 
   auto feasible = [&](double t) {
@@ -394,7 +403,7 @@ bool RelocateGenerator::backOffForSafeSinks(
   }
 
   out_target = point_at(t);
-  return manhattan(orig, out_target) >= kMinMoveThresholdDbu;
+  return manhattan(orig, out_target) >= min_move_dbu_;
 }
 
 }  // namespace rsz

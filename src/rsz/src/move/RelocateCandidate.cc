@@ -6,7 +6,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <memory>
-#include <optional>
 
 #include "MoveCandidate.hh"
 #include "OptimizerTypes.hh"
@@ -43,13 +42,17 @@ RelocateCandidate::RelocateCandidate(Resizer& resizer,
                                      sta::Pin* drvr_pin,
                                      const odb::Point& orig_loc,
                                      const odb::Point& requested_loc,
-                                     const float setup_slack_margin)
+                                     const float setup_slack_margin,
+                                     const bool legalize,
+                                     const int max_skew_dbu)
     : MoveCandidate(resizer, target),
       drvr_inst_(drvr_inst),
       drvr_pin_(drvr_pin),
       orig_loc_(orig_loc),
       requested_loc_(requested_loc),
-      setup_slack_margin_(setup_slack_margin)
+      setup_slack_margin_(setup_slack_margin),
+      legalize_(legalize),
+      max_skew_dbu_(max_skew_dbu)
 {
 }
 
@@ -70,21 +73,24 @@ MoveResult RelocateCandidate::apply()
     return rejectedMove();
   }
 
-  const std::optional<odb::Point> candidate
-      = opendp->findLegalLocation(db_inst, requested_loc_);
-  if (!candidate.has_value()) {
-    debugPrint(resizer_.logger(),
-               RSZ,
-               "relocate_move",
-               2,
-               "REJECT RelocateMove {}: no free pixel near request",
-               resizer_.network()->pathName(drvr_pin_));
-    return rejectedMove();
+  // Legalize the requested target to a real odb location the same way buffer
+  // insertion does (Resizer::insertBufferPostProcess): clamp to core, then
+  // optionally snap off-macro / off-die / on-row via dpl's existing
+  // legalCellPos. We only need a legal *point*; the dpl grid is intentionally
+  // not reserved (matching buffer insertion), and the detailed_placement after
+  // repair_timing rebuilds it. Stage the request on the db inst, read the
+  // snapped location back, then restore the original location so the guard
+  // phase -- and every reject path below -- leaves odb untouched. Only the
+  // final commit re-applies new_loc.
+  resizer_.setLocation(db_inst, requested_loc_);
+  if (legalize_) {
+    opendp->legalCellPos(db_inst);
   }
-  const odb::Point new_loc = candidate.value();
+  const odb::Point new_loc = db_inst->getLocation();
+  db_inst->setLocation(orig_loc_.getX(), orig_loc_.getY());
 
   const int placement_skew = manhattan(new_loc, requested_loc_);
-  if (placement_skew > kPlacementDisplacementLimitDbu) {
+  if (placement_skew > max_skew_dbu_) {
     debugPrint(resizer_.logger(),
                RSZ,
                "relocate_move",
@@ -92,7 +98,7 @@ MoveResult RelocateCandidate::apply()
                "REJECT RelocateMove {}: placement skew {} > limit {}",
                resizer_.network()->pathName(drvr_pin_),
                placement_skew,
-               kPlacementDisplacementLimitDbu);
+               max_skew_dbu_);
     return rejectedMove();
   }
 
@@ -104,9 +110,9 @@ MoveResult RelocateCandidate::apply()
   //
   // The same output-net walk also runs the collateral-slack guard: the
   // generator already backed the requested target off so currently-safe sinks
-  // stay above the margin, but dpl may have snapped the actual pixel up to
-  // kPlacementDisplacementLimitDbu away. Re-check against the committed
-  // new_loc and reject if that snap would push a safe sink into violation.
+  // stay above the margin, but legalCellPos may have snapped the actual
+  // location up to max_skew_dbu_ away. Re-check against the committed new_loc
+  // and reject if that snap would push a safe sink into violation.
   const sta::Scene* scene = resizer_.sta()->cmdScene();
   const sta::MinMax* max_mode = resizer_.maxAnalysisMode();
   const sta::Path* drvr_path = target_.driverPath(resizer_);

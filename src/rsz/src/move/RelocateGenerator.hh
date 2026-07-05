@@ -55,7 +55,7 @@ class RelocateGenerator : public MoveGenerator
   // Shrinks the move along orig->requested so every currently-safe sink keeps
   // at least `setup_slack_margin` of slack under a first-order wire-delay
   // model. Returns the largest safe location; false if even a minimal safe
-  // step stays below kMinMoveThresholdDbu. A no-op (returns `requested`) when
+  // step stays below min_move_dbu_. A no-op (returns `requested`) when
   // there is no wire RC model or no safe sinks to protect.
   bool backOffForSafeSinks(const odb::Point& orig,
                            const odb::Point& requested,
@@ -65,10 +65,23 @@ class RelocateGenerator : public MoveGenerator
                            double wire_cap,
                            odb::Point& out_target) const;
 
+  // Experiment knobs, all read once from the environment in the constructor.
+  //
   // Slack band (s) added above setup_slack_margin to decide how aggressively
   // marginal positive-slack sinks pull on the centroid. 0 reproduces the
-  // negative-slack-only centroid. Read once from RSZ_RELOCATE_SLACK_BAND.
+  // negative-slack-only centroid. RSZ_RELOCATE_SLACK_BAND.
   double slack_band_{0.0};
+  // Minimum driver->target HPWL to attempt a move. RSZ_RELOCATE_MIN_MOVE_DBU.
+  int min_move_dbu_{kMinMoveThresholdDbu};
+  // Refine the plain centroid with the 1D Elmore-optimal point.
+  // RSZ_RELOCATE_ELMORE (0 disables, using the plain centroid).
+  bool use_elmore_{true};
+  // Snap the target off-macro/off-die/on-row via dpl's legalCellPos before
+  // committing. RSZ_RELOCATE_LEGALIZE (0 uses the raw clamp-to-core location).
+  bool legalize_{true};
+  // Max skew between requested target and legalized location before rejecting.
+  // RSZ_RELOCATE_MAX_SKEW_DBU. Passed to the candidate.
+  int max_skew_dbu_{0};
 };
 
 }  // namespace rsz

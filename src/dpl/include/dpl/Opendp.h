@@ -8,7 +8,6 @@
 #include <map>
 #include <memory>
 #include <numeric>  // accumulate
-#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -103,23 +102,6 @@ class Opendp
 
   void legalCellPos(odb::dbInst* db_inst);  // call from rsz
   void initMacrosAndGrid();                 // call from rsz
-
-  // Atomically relocate inst as close to requested_loc as a free legal pixel
-  // allows, within Opendp's diamond-search bounds. Updates the dpl grid and
-  // the db inst location in lockstep. Returns the final location on success,
-  // or nullopt if no reachable free pixel exists (in which case inst is left
-  // at its current location, both in the grid and the db).
-  std::optional<odb::Point> placeAt(odb::dbInst* db_inst,
-                                    const odb::Point& requested_loc);
-
-  // Dry-run variant of placeAt: returns the location placeAt would commit
-  // for requested_loc, without leaving the dpl grid or the db inst location
-  // changed. The cell is unplaced for the diamond search and re-placed at
-  // its original site before returning, so observable state is the same on
-  // entry and exit. Use this to predict a move's impact before committing
-  // it via placeAt.
-  std::optional<odb::Point> findLegalLocation(odb::dbInst* db_inst,
-                                              const odb::Point& requested_loc);
 
   // legalize/report
   // max_displacment is in sites. use zero for defaults.
