@@ -27,6 +27,7 @@
 #include "sta/Parasitics.hh"
 #include "sta/Path.hh"
 #include "sta/PathExpanded.hh"
+#include "sta/PortDirection.hh"
 #include "sta/Scene.hh"
 #include "sta/Sdc.hh"
 #include "sta/StaState.hh"
@@ -1180,6 +1181,34 @@ ArcDelayState collectPathStages(const Resizer& resizer,
   return context;
 }
 
+// Drive resistance of the previous critical-path driver feeding the target
+// stage: The first output-direction liberty pin walking backward on the
+// expanded path (the target's input pin is skipped as an input). Returns 0
+// when no previous driver resolves, e.g. the target is driven by a top-level
+// port.
+float faninDriveResistance(const Resizer& resizer,
+                           const sta::PathExpanded& expanded,
+                           const int path_index)
+{
+  const int start_index = static_cast<int>(expanded.startIndex());
+  for (int index = path_index - 1; index >= start_index; --index) {
+    const sta::Path* path = expanded.path(index);
+    const sta::Pin* pin
+        = path != nullptr ? path->pin(resizer.staState()) : nullptr;
+    if (pin == nullptr) {
+      continue;
+    }
+    const sta::LibertyPort* port = resizer.network()->libertyPort(pin);
+    if (port == nullptr) {
+      continue;
+    }
+    if (port->direction()->isAnyOutput()) {
+      return port->driveResistance();
+    }
+  }
+  return 0.0f;
+}
+
 DelayEstimate makeEstimate(const float current_delay,
                            const float candidate_delay)
 {
@@ -1229,6 +1258,16 @@ DelayEstimate estimateWindow(const ArcDelayState& context,
 
   const float current_total_delay = context.current_total_delay;
   float candidate_total_delay = 0.0f;
+
+  // With no fanin stage captured (target-stage-only estimation), charge the
+  // candidate's input-cap delta against the previous driver as a first-order
+  // R*deltaC delay penalty so every move type scores the same
+  // {fanin, target}-stage arrival axis. Windows that captured a fanin stage
+  // model this effect through that stage's bumped load instead, so the
+  // analytic term is skipped there to avoid double counting.
+  if (target_index == 0 && context.fanin_drive_res > 0.0f) {
+    candidate_total_delay += context.fanin_drive_res * target_input_cap_delta;
+  }
   float propagated_driver_output_slew = 0.0f;
   bool has_propagated_driver_output_slew = false;
 
@@ -1409,6 +1448,7 @@ std::optional<ArcDelayState> DelayEstimator::buildContext(
                                             min_max,
                                             normalized_delay_levels,
                                             *target_stage);
+  context.fanin_drive_res = faninDriveResistance(resizer, expanded, path_index);
   if (use_sta_slew_bias) {
     prepareFaninNeighborSlewBias(resizer, context);
   }

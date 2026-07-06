@@ -143,6 +143,25 @@ std::vector<std::unique_ptr<MoveCandidate>> SwapPinsGenerator::buildCandidates(
     return candidates;
   }
 
+  // Swapping moves the critical net onto swap_port, changing the fanin net's
+  // load by the pin-cap difference; charge it against the previous driver as
+  // a first-order R*deltaC delay so the estimate covers the same
+  // {fanin, target}-stage axis as the other moves.
+  float fanin_penalty = 0.0f;
+  const float prev_drive = prevDriverDriveResistance(resizer_, target);
+  if (prev_drive > 0.0f) {
+    const int lib_ap = scene->libertyIndex(min_max);
+    const sta::LibertyPort* scene_input_port
+        = static_cast<const sta::LibertyPort*>(input_port)->scenePort(lib_ap);
+    const sta::LibertyPort* scene_swap_port
+        = static_cast<const sta::LibertyPort*>(swap_port)->scenePort(lib_ap);
+    if (scene_input_port != nullptr && scene_swap_port != nullptr) {
+      fanin_penalty = prev_drive
+                      * (scene_swap_port->capacitance()
+                         - scene_input_port->capacitance());
+    }
+  }
+
   candidates.push_back(std::make_unique<SwapPinsCandidate>(resizer_,
                                                            target,
                                                            drvr,
@@ -150,7 +169,8 @@ std::vector<std::unique_ptr<MoveCandidate>> SwapPinsGenerator::buildCandidates(
                                                            input_port,
                                                            swap_port,
                                                            current_delay,
-                                                           swap_delay));
+                                                           swap_delay,
+                                                           fanin_penalty));
   return candidates;
 }
 

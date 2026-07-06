@@ -306,6 +306,19 @@ const sta::Path* Target::prevDriverPath(const Resizer& resizer) const
   return input_path != nullptr ? input_path->prevPath() : nullptr;
 }
 
+float prevDriverDriveResistance(const Resizer& resizer, const Target& target)
+{
+  const sta::Path* prev_drvr_path = target.prevDriverPath(resizer);
+  if (prev_drvr_path == nullptr) {
+    return 0.0f;
+  }
+  sta::Pin* prev_drvr_pin = prev_drvr_path->pin(resizer.staState());
+  sta::LibertyPort* prev_drvr_port
+      = prev_drvr_pin != nullptr ? resizer.network()->libertyPort(prev_drvr_pin)
+                                 : nullptr;
+  return prev_drvr_port != nullptr ? prev_drvr_port->driveResistance() : 0.0f;
+}
+
 std::string Target::name(const Resizer& resizer) const
 {
   sta::Pin* target_pin = resolvedPin(resizer);

@@ -28,13 +28,16 @@ class SwapPinsCandidate : public MoveCandidate
 {
  public:
   // === Delay comparison data ===============================================
-  // Pre-computed delay pair.  current_delay is the arc delay through the
+  // Pre-computed delay data.  current_delay is the arc delay through the
   // existing input pin; swap_delay is the delay through the alternative
-  // symmetric pin.  The score is the positive difference (improvement).
+  // symmetric pin.  fanin_penalty is the first-order fanin-stage slowdown
+  // R_prev * (C_swap_pin - C_current_pin) from moving the critical net onto a
+  // different-capacitance pin.  The score is the penalized difference.
   struct DelayState
   {
     float current_delay{0.0f};
     float swap_delay{0.0f};
+    float fanin_penalty{0.0f};
   };
 
   // === Construction =========================================================
@@ -45,7 +48,8 @@ class SwapPinsCandidate : public MoveCandidate
                     sta::LibertyPort* input_port,
                     sta::LibertyPort* swap_port,
                     float current_delay,
-                    float swap_delay);
+                    float swap_delay,
+                    float fanin_penalty);
 
   // === MoveCandidate API ====================================================
   Estimate estimate() override;

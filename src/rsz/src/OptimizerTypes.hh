@@ -191,6 +191,12 @@ struct ArcDelayState
   // Cached sum of stage.current_delay across path_stages; populated once at
   // build time so per-candidate scoring does not re-walk the window.
   float current_total_delay{0.0f};
+  // Drive resistance of the previous critical-path driver feeding the target
+  // stage; 0 when unavailable (e.g. the target is driven by a top-level
+  // port). Lets target-stage-only estimation charge a candidate's input-cap
+  // delta against the fanin stage as a first-order R*deltaC delay penalty
+  // when no fanin stage is captured in path_stages.
+  float fanin_drive_res{0.0f};
 
   const DelayStageState& target() const
   {
@@ -288,6 +294,13 @@ Target makePathDriverTarget(const sta::Path* endpoint_path,
                             int path_index,
                             sta::Slack slack,
                             const Resizer& resizer);
+
+// Drive resistance of the previous critical-path driver feeding the target's
+// driver stage, or 0 when it cannot be resolved (no previous driver on the
+// path, or no liberty port). Used to charge a move's fanin-net capacitance
+// change as a first-order R*deltaC arrival penalty so move estimates stay on
+// one comparable axis.
+float prevDriverDriveResistance(const Resizer& resizer, const Target& target);
 
 // === Estimation inputs and results =========================================
 

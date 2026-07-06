@@ -17,21 +17,22 @@ namespace rsz {
 // Behaviorally identical to SetupLegacyPolicy except in the per-target
 // candidate decision: instead of trying generators in -sequence order and
 // committing the first acceptable candidate, this policy gathers every
-// applicable candidate, partitions them into two tiers, and commits the best
-// one.
+// applicable candidate and tries them in three bands, committing the first
+// acceptable one.
 //
-//   Tier 1: Candidates whose Estimate.estimated == false (today: BufferMove,
-//           SplitLoadMove). Tried in legacy -sequence order so they keep their
-//           existing priority without being sentinel-favored.
-//   Tier 2: Candidates whose Estimate.estimated == true.
-//           Ranked by Estimate.score (descending). No threshold -- a negative
-//           score is still preferred over Tier 2 because the estimator may be
-//           wrong in direction at this stage and we use it only to rank, not to
-//           gate.
+//   Band 1: Estimated candidates with score > 0, ranked by Estimate.score
+//           (descending, stable -- ties keep -sequence order). Moves the
+//           model predicts to improve arrival get first refusal.
+//   Band 2: Unestimated candidates (Estimate.estimated == false; today
+//           BufferMove and SplitLoadMove) in legacy -sequence order. This
+//           preserves buffering's legacy role as the fallback after the
+//           cheap sizing moves.
+//   Band 3: Estimated candidates with score <= 0, ranked descending. Scores
+//           rank candidates rather than gate them -- a negative prediction
+//           only loses first refusal, it stays reachable.
 //
-// On commit-time rejection inside Tier 1 (for example a max-cap re-check flip),
-// the policy falls through to the next Tier 1 candidate and only falls into
-// Tier 2 once all Tier 1 candidates have been exhausted.
+// On commit-time rejection (for example a max-cap re-check flip), the policy
+// falls through to the next candidate in band order.
 class SetupScoreRankPolicy : public SetupLegacyPolicy
 {
  public:

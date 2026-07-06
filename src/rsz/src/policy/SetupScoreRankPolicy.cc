@@ -60,9 +60,9 @@ bool SetupScoreRankPolicy::tryRepairTarget(
     live_target.fanout = fanout(live_vertex);
   }
 
-  // Collect candidates into two tiers based on whether the candidate produced
+  // Collect candidates into two pools based on whether the candidate produced
   // a real timing estimate. Generators are walked in move_sequence_ order so
-  // tier-2 insertion order matches the legacy -sequence ordering.
+  // each pool's insertion order matches the legacy -sequence ordering.
   std::vector<ScoredCandidate> estimated_pool;
   std::vector<ScoredCandidate> unestimated_pool;
   for (const std::unique_ptr<MoveGenerator>& generator_ptr : move_generators_) {
@@ -98,7 +98,7 @@ bool SetupScoreRankPolicy::tryRepairTarget(
     }
   }
 
-  // Commit attempt helper -- shared between the two tiers.
+  // Commit attempt helper -- shared between the three bands.
   auto tryCommit = [&](ScoredCandidate& entry) -> bool {
     committer_.trackMoveAttempt(live_target.driver_pin, entry.type);
     const MoveResult result = committer_.commit(*entry.candidate);
@@ -110,37 +110,62 @@ bool SetupScoreRankPolicy::tryRepairTarget(
     return true;
   };
 
-  // Tier 1: Unestimated candidates in legacy -sequence order. Reached only once
-  // every estimated candidate has been tried and rejected at commit time, so
-  // BufferMove / SplitLoadMove keep their existing priority while estimated
-  // moves get first refusal.
-  for (ScoredCandidate& entry : unestimated_pool) {
-    debugPrint(logger_,
-               RSZ,
-               "score_rank",
-               3,
-               "Tier2 candidate move={}",
-               moveName(entry.type));
-    if (tryCommit(entry)) {
-      return true;
-    }
-  }
-
-  // Tier 2: Estimated candidates ranked by score (descending). No threshold:
-  // estimates may be wrong in direction at this stage, so we only use them to
-  // order candidates, not to reject any.
+  // Rank the estimated pool once; band membership then splits on score sign.
+  // stable_sort keeps -sequence order for equal scores.
   std::ranges::stable_sort(
       estimated_pool,
       [](const ScoredCandidate& lhs, const ScoredCandidate& rhs) {
         return lhs.estimate.score > rhs.estimate.score;
       });
 
-  for (ScoredCandidate& entry : estimated_pool) {
+  // Band 1: Estimated candidates the model predicts to improve arrival
+  // (score > 0), best first. These get first refusal.
+  size_t nonpositive_begin = estimated_pool.size();
+  for (size_t index = 0; index < estimated_pool.size(); ++index) {
+    ScoredCandidate& entry = estimated_pool[index];
+    if (entry.estimate.score <= 0.0f) {
+      nonpositive_begin = index;
+      break;
+    }
     debugPrint(logger_,
                RSZ,
                "score_rank",
                3,
-               "Tier1 candidate move={} score={:e}",
+               "Band1 candidate move={} score={:e}",
+               moveName(entry.type),
+               entry.estimate.score);
+    if (tryCommit(entry)) {
+      return true;
+    }
+  }
+
+  // Band 2: Unestimated candidates (BufferMove, SplitLoadMove) in legacy
+  // -sequence order. This is the fallback slot buffering holds in the legacy
+  // sequence: it runs after every move predicted to improve, but before any
+  // move predicted to hurt.
+  for (ScoredCandidate& entry : unestimated_pool) {
+    debugPrint(logger_,
+               RSZ,
+               "score_rank",
+               3,
+               "Band2 candidate move={}",
+               moveName(entry.type));
+    if (tryCommit(entry)) {
+      return true;
+    }
+  }
+
+  // Band 3: Estimated candidates with non-positive scores, still ranked.
+  // Estimates may be wrong in direction, so they rank candidates rather than
+  // reject them; a negative prediction only loses first refusal.
+  for (size_t index = nonpositive_begin; index < estimated_pool.size();
+       ++index) {
+    ScoredCandidate& entry = estimated_pool[index];
+    debugPrint(logger_,
+               RSZ,
+               "score_rank",
+               3,
+               "Band3 candidate move={} score={:e}",
                moveName(entry.type),
                entry.estimate.score);
     if (tryCommit(entry)) {

@@ -37,6 +37,18 @@ SizeDownFanoutCandidate::SizeDownFanoutCandidate(Resizer& resizer,
 
 Estimate SizeDownFanoutCandidate::estimate()
 {
+  // FIXME: This score is on the wrong axis for cross-move ranking.
+  // worst_delay_change_ measures the *side-path* slowdown of the downsized
+  // fanout load (already budget-gated by fitsDelayBudget), so its negation is
+  // almost always negative and score-ranking policies place this move last
+  // even when the critical path strictly improves. The correct score on the
+  // unified {fanin, target}-stage arrival axis is the critical-path benefit
+  // -computeDriverDelayDelta(replacement) (driver speedup from the reduced
+  // fanout input cap), which the generator computes but discards. Note also
+  // that legacy policies apply this move in batch across all fitting loads
+  // (SetupLegacyBase::allowsBatchRepair) while score-ranking commits at most
+  // one candidate per target visit. Deferred: the move is disabled by default.
+  //
   // SizeDownFanoutGenerator already computed the move's net local delay change
   // for the chosen cell. A positive worst_delay_change_ means a stage slowed
   // down, so the arrival delta is its negation -- typically negative, since a

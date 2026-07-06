@@ -354,6 +354,71 @@ TEST_F(TestResizerMt, BuildArcDelayStateAndEstimateLvtCandidate)
   EXPECT_EQ(estimate.reason, FailReason::kEstimateLegal);
 }
 
+TEST_F(TestResizerMt, Levels0EstimateChargesFaninDrivePenalty)
+{
+  Resizer& resizer = resizer_;
+  resizer.runRepairSetupPreamble();
+  const Target target = makeTarget("path_out", "path_target", "ZN");
+
+  FailReason fail_reason = FailReason::kNone;
+  auto context = DelayEstimator::buildContext(resizer, target, 0, &fail_reason);
+  ASSERT_TRUE(context.has_value()) << failReasonName(fail_reason);
+  if (!context.has_value()) {
+    return;
+  }
+  const ArcDelayState& arc_delay = context.value();
+
+  // path_target/A1 is fed by path_pre1 (BUF_X16), so the previous driver's
+  // drive resistance must resolve.
+  EXPECT_GT(arc_delay.fanin_drive_res, 0.0f);
+
+  sta::LibertyCell* candidate_cell
+      = sta_->network()->findLibertyCell("NAND2_X2");
+  ASSERT_NE(candidate_cell, nullptr);
+
+  // With no fanin stage in the window, the penalized estimate must equal the
+  // unpenalized estimate minus R_fanin * (C_in_candidate - C_in_current).
+  ArcDelayState unpenalized = arc_delay;
+  unpenalized.fanin_drive_res = 0.0f;
+  const DelayEstimate base
+      = DelayEstimator::estimate(unpenalized, candidate_cell);
+  const DelayEstimate penalized
+      = DelayEstimator::estimate(arc_delay, candidate_cell);
+
+  const DelayStageState& target_stage = arc_delay.target();
+  sta::LibertyCell* candidate_scene_cell = candidate_cell->sceneCell(
+      target_stage.arc.scene, target_stage.arc.min_max);
+  ASSERT_NE(candidate_scene_cell, nullptr);
+  sta::LibertyPort* candidate_input = candidate_scene_cell->findLibertyPort(
+      target_stage.arc.inputPort()->name());
+  ASSERT_NE(candidate_input, nullptr);
+  const float input_cap_delta = candidate_input->capacitance()
+                                - target_stage.arc.inputPort()->capacitance();
+  // Upsizing NAND2_X1 -> NAND2_X2 grows the input pin cap, so the penalty
+  // must reduce the estimated improvement.
+  EXPECT_GT(input_cap_delta, 0.0f);
+  EXPECT_NEAR(penalized.arrival_impr,
+              base.arrival_impr - arc_delay.fanin_drive_res * input_cap_delta,
+              1.0e-12f);
+}
+
+TEST_F(TestResizerMt, Levels0EstimateNoPenaltyForPortDrivenTarget)
+{
+  Resizer& resizer = resizer_;
+  resizer.runRepairSetupPreamble();
+  const Target target = makeTarget("out0", "target", "Z");
+
+  FailReason fail_reason = FailReason::kNone;
+  auto context = DelayEstimator::buildContext(resizer, target, 0, &fail_reason);
+  ASSERT_TRUE(context.has_value()) << failReasonName(fail_reason);
+  if (!context.has_value()) {
+    return;
+  }
+  // `target` is driven by the top-level port `in`; no previous liberty driver
+  // resolves, so estimation stays penalty-free.
+  EXPECT_FLOAT_EQ(context->fanin_drive_res, 0.0f);
+}
+
 TEST_F(TestResizerMt, BuildArcDelayStateWithOneLevelPathWindow)
 {
   Resizer& resizer = resizer_;

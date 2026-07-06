@@ -22,22 +22,28 @@ SwapPinsCandidate::SwapPinsCandidate(Resizer& resizer,
                                      sta::LibertyPort* input_port,
                                      sta::LibertyPort* swap_port,
                                      const float current_delay,
-                                     const float swap_delay)
+                                     const float swap_delay,
+                                     const float fanin_penalty)
     : MoveCandidate(resizer, target),
       drvr_(drvr),
       drvr_port_(drvr_port),
       input_port_(input_port),
       swap_port_(swap_port),
-      delay_state_{.current_delay = current_delay, .swap_delay = swap_delay}
+      delay_state_{.current_delay = current_delay,
+                   .swap_delay = swap_delay,
+                   .fanin_penalty = fanin_penalty}
 {
 }
 
 Estimate SwapPinsCandidate::estimate()
 {
-  // The generator pre-computed both arc delays; the improvement is the
-  // reduction from routing the critical signal through the faster pin.
-  const float delta_arrival
-      = delay_state_.current_delay - delay_state_.swap_delay;
+  // The generator pre-computed both arc delays and the fanin penalty; the
+  // improvement is the reduction from routing the critical signal through the
+  // faster pin, minus the previous driver's slowdown when the swapped-in pin
+  // adds capacitance to the critical fanin net.
+  const float delta_arrival = delay_state_.current_delay
+                              - delay_state_.swap_delay
+                              - delay_state_.fanin_penalty;
   return {.legal = delta_arrival > 0.0f,
           .score = delta_arrival,
           .delta_arrival = delta_arrival,
