@@ -424,6 +424,25 @@ struct OptimizationPolicyConfig
   // Experimental. Enable load-dependent STA output-slew bias sampling for
   // the fanin neighbor stage in MT delay estimation.
   bool delay_estimator_sta_slew_bias{false};
+
+  // COMMON_VIOLATORS phase: Minimum number of endpoint worst paths a driver
+  // pin must lie on to qualify as a common violator.
+  int common_min_path_count{2};
+
+  // COMMON_VIOLATORS phase: Collect and report the pool, then make no
+  // repairs (measurement mode).
+  bool common_report_only{false};
+
+  // COMMON_VIOLATORS phase: Maximum number of collect-and-repair sweeps.
+  int common_max_sweeps{20};
+
+  // COMMON_VIOLATORS phase: Attempt only the top N ranked pins per sweep;
+  // 0 means all qualifying pins.
+  int common_top_pins{0};
+
+  // COMMON_VIOLATORS phase: Cap on violating endpoints walked during
+  // collection; 0 means all.
+  int common_max_endpoints{0};
 };
 
 // === Move type labels ======================================================

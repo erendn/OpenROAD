@@ -112,6 +112,8 @@ cc_library(
         "src/policy/MeasuredVtSwapPolicy.hh",
         "src/policy/OptimizationPolicy.cc",
         "src/policy/OptimizationPolicy.hh",
+        "src/policy/SetupCommonViolatorsPolicy.cc",
+        "src/policy/SetupCommonViolatorsPolicy.hh",
         "src/policy/SetupCritVtSwapPolicy.cc",
         "src/policy/SetupCritVtSwapPolicy.hh",
         "src/policy/SetupDirectionalPolicy.cc",

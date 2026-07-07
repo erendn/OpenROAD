@@ -55,6 +55,19 @@ struct pinData
   int level;
 };
 
+// Per-pin commonality data for the COMMON_VIOLATORS phase: how many violating
+// endpoints' worst paths cross this driver pin, and how much endpoint slack
+// flows through it.
+struct CommonViolatorData
+{
+  int path_count{0};          // # violating endpoints whose worst path crosses
+  sta::Slack slack_sum{0.0};  // sum of those endpoints' slacks (all negative)
+  sta::Slack worst_slack{0.0};
+  // Captured at collection time so the policy can skip stale pins after
+  // committed topology moves without dereferencing the pin.
+  const sta::Instance* inst{nullptr};
+};
+
 // Class to collect instances with violating output pins.
 class RepairTargetCollector
 {
@@ -120,6 +133,27 @@ class RepairTargetCollector
   vector<const sta::Pin*> collectViolatorsByPin(
       int numPins,
       ViolatorSortType sort_type = ViolatorSortType::SORT_BY_LOAD_DELAY);
+
+  // Collect "common violators": driver pins on the worst paths of multiple
+  // violating endpoints. Walks the worst path of every violating endpoint
+  // (capped at max_endpoints when > 0), counts per-pin path crossings and
+  // accumulates endpoint slack. Keeps pins crossed by at least min_path_count
+  // worst paths, ranked by slack_sum ascending (most negative first), ties by
+  // path_count descending then pin path name.
+  vector<const sta::Pin*> collectCommonViolators(int min_path_count,
+                                                 int max_endpoints);
+
+  // Report collection statistics gathered by collectCommonViolators():
+  // pool sizes, path_count histogram, and the top ranked pins.
+  void reportCommonViolators(int min_path_count, int num_print = 20) const;
+
+  // Per-pin commonality data for the last collectCommonViolators() call;
+  // returns nullptr for pins not seen in that collection.
+  const CommonViolatorData* getCommonViolatorData(const sta::Pin* pin) const
+  {
+    auto it = common_violator_data_.find(pin);
+    return it != common_violator_data_.end() ? &it->second : nullptr;
+  }
 
   // Collect violators within slack margin of worst endpoint
   // Returns pins where:
@@ -321,6 +355,7 @@ class RepairTargetCollector
   float slack_margin_;
   vector<const sta::Pin*> violating_pins_;
   std::map<const sta::Pin*, pinData> pin_data_;
+  std::map<const sta::Pin*, CommonViolatorData> common_violator_data_;
   vector<std::pair<const sta::Pin*, sta::Slack>> violating_endpoints_;
   vector<std::pair<const sta::Pin*, sta::Slack>> violating_startpoints_;
 

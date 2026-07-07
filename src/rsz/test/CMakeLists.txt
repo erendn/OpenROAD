@@ -133,6 +133,7 @@ or_integration_tests(
     repair_setup8
     repair_setup9
     repair_setup9_hier
+    repair_setup_phase_common_violators
     repair_setup_phase_endpoint_fanin
     repair_setup_phase_startpoint_fanout
     repair_setup_phase_tns

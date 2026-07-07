@@ -15,6 +15,7 @@
 #include "OptimizationPolicy.hh"
 #include "OptimizerTypes.hh"
 #include "RepairSetupContext.hh"
+#include "SetupCommonViolatorsPolicy.hh"
 #include "SetupCritVtSwapPolicy.hh"
 #include "SetupDirectionalPolicy.hh"
 #include "SetupLastGaspPolicy.hh"
@@ -144,6 +145,10 @@ std::unique_ptr<OptimizationPolicy> Optimizer::makePolicyForPhase(
   }
   if (phase_name == "GLOBAL_SIZING") {
     return std::make_unique<GlobalSizingPolicy>(
+        resizer_, committer_, setup_context, config_);
+  }
+  if (phase_name == "COMMON_VIOLATORS") {
+    return std::make_unique<SetupCommonViolatorsPolicy>(
         resizer_, committer_, setup_context, config_);
   }
   // Only public phase names are listed; experimental top-level tokens

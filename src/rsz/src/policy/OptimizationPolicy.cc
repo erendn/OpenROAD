@@ -277,6 +277,17 @@ void OptimizationPolicy::loadPolicyEnvars()
   // as 0.
   policy_config_.delay_estimator_sta_slew_bias
       = utl::readEnvarInt("RSZ_MT_SLEW_BIAS", 1) > 0;
+  // COMMON_VIOLATORS phase tunables.
+  policy_config_.common_min_path_count
+      = utl::readEnvarNonNegativeInt("RSZ_COMMON_MIN_COUNT", 2);
+  policy_config_.common_report_only
+      = utl::readEnvarInt("RSZ_COMMON_REPORT_ONLY", 0) > 0;
+  policy_config_.common_max_sweeps
+      = utl::readEnvarNonNegativeInt("RSZ_COMMON_MAX_SWEEPS", 20);
+  policy_config_.common_top_pins
+      = utl::readEnvarNonNegativeInt("RSZ_COMMON_TOP_PINS", 0);
+  policy_config_.common_max_endpoints
+      = utl::readEnvarNonNegativeInt("RSZ_COMMON_MAX_ENDPOINTS", 0);
 }
 
 GeneratorContext OptimizationPolicy::makeGeneratorContext() const

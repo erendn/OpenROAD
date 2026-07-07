@@ -1283,6 +1283,160 @@ vector<const sta::Pin*> RepairTargetCollector::collectViolatorsFromEndpoints(
   return violating_pins_;
 }
 
+vector<const sta::Pin*> RepairTargetCollector::collectCommonViolators(
+    const int min_path_count,
+    const int max_endpoints)
+{
+  violating_pins_.clear();
+  common_violator_data_.clear();
+
+  collectViolatingEndpoints();
+
+  int endpoints_used = 0;
+  for (const auto& [endpoint_pin, endpoint_slack] : violating_endpoints_) {
+    if (max_endpoints > 0 && endpoints_used >= max_endpoints) {
+      break;
+    }
+    endpoints_used++;
+
+    sta::Vertex* end_vertex = graph_->pinLoadVertex(endpoint_pin);
+    if (end_vertex == nullptr) {
+      continue;
+    }
+    sta::Path* path = sta_->vertexWorstSlackPath(end_vertex, max_);
+    if (path == nullptr) {
+      continue;
+    }
+
+    sta::PathExpanded expanded(path, sta_);
+    for (size_t i = expanded.startIndex(); i < expanded.size(); i++) {
+      const sta::Path* drvr_path = expanded.path(i);
+      sta::Vertex* drvr_vertex = drvr_path->vertex(sta_);
+      const sta::Pin* pin = drvr_path->pin(sta_);
+      if (drvr_vertex == nullptr || pin == nullptr
+          || !drvr_vertex->isDriver(network_) || network_->isTopLevelPort(pin)
+          || !network_->direction(pin)->isOutput()
+          || sta_->isClock(pin, sta_->cmdMode())) {
+        continue;
+      }
+      CommonViolatorData& data = common_violator_data_[pin];
+      if (data.path_count == 0) {
+        data.inst = network_->instance(pin);
+        data.worst_slack = endpoint_slack;
+      }
+      data.path_count++;
+      data.slack_sum = sta::delayAsFloat(data.slack_sum)
+                       + sta::delayAsFloat(endpoint_slack);
+      data.worst_slack = std::min(data.worst_slack, endpoint_slack);
+    }
+  }
+
+  for (const auto& [pin, data] : common_violator_data_) {
+    if (data.path_count >= min_path_count) {
+      violating_pins_.push_back(pin);
+    }
+  }
+
+  for (const sta::Pin* pin : violating_pins_) {
+    updatePinData(pin, pin_data_[pin]);
+  }
+
+  std::ranges::sort(
+      violating_pins_, [this](const sta::Pin* a, const sta::Pin* b) {
+        const CommonViolatorData& da = common_violator_data_.at(a);
+        const CommonViolatorData& db = common_violator_data_.at(b);
+        return da.slack_sum < db.slack_sum
+               || (da.slack_sum == db.slack_sum
+                   && da.path_count > db.path_count)
+               || (da.slack_sum == db.slack_sum
+                   && da.path_count == db.path_count
+                   && network_->pathNameLess(a, b));
+      });
+
+  for (const sta::Pin* pin : violating_pins_) {
+    markPinConsidered(pin);
+  }
+
+  debugPrint(logger_,
+             RSZ,
+             "violator_collector",
+             2,
+             "Common violators: {} endpoints walked, {} distinct worst-path "
+             "driver pins, {} with path_count >= {}",
+             endpoints_used,
+             common_violator_data_.size(),
+             violating_pins_.size(),
+             min_path_count);
+
+  return violating_pins_;
+}
+
+void RepairTargetCollector::reportCommonViolators(const int min_path_count,
+                                                  const int num_print) const
+{
+  int max_count = 0;
+  for (const auto& [pin, data] : common_violator_data_) {
+    max_count = std::max(max_count, data.path_count);
+  }
+  logger_->report(
+      "Common violators: {} violating endpoints, {} distinct worst-path "
+      "driver pins, {} on >= {} paths, max path_count {}",
+      violating_endpoints_.size(),
+      common_violator_data_.size(),
+      violating_pins_.size(),
+      min_path_count,
+      max_count);
+  if (common_violator_data_.empty()) {
+    return;
+  }
+
+  // Fixed bucket edges keep the histogram compact and deterministic.
+  static constexpr int bucket_edges[] = {1, 2, 3, 4, 8, 16, 32, 64, 128, 256};
+  constexpr int num_buckets = sizeof(bucket_edges) / sizeof(bucket_edges[0]);
+  int histogram[num_buckets + 1] = {0};
+  for (const auto& [pin, data] : common_violator_data_) {
+    int bucket = num_buckets;
+    for (int b = 0; b < num_buckets; b++) {
+      if (data.path_count <= bucket_edges[b]) {
+        bucket = b;
+        break;
+      }
+    }
+    histogram[bucket]++;
+  }
+  logger_->report("path_count histogram:");
+  for (int b = 0; b < num_buckets + 1; b++) {
+    if (histogram[b] == 0) {
+      continue;
+    }
+    const int lo = b == 0 ? 1 : bucket_edges[b - 1] + 1;
+    if (b == num_buckets) {
+      logger_->report(
+          "  > {:3}      : {:6}", bucket_edges[num_buckets - 1], histogram[b]);
+    } else if (lo == bucket_edges[b]) {
+      logger_->report("  {:5}      : {:6}", bucket_edges[b], histogram[b]);
+    } else {
+      logger_->report(
+          "  {:3} - {:3}  : {:6}", lo, bucket_edges[b], histogram[b]);
+    }
+  }
+
+  logger_->report(
+      "{:>5} {:>10} {:>10} {}", "count", "slack_sum", "worst", "pin");
+  int printed = 0;
+  for (const sta::Pin* pin : violating_pins_) {
+    if (printed++ >= num_print) {
+      break;
+    }
+    const CommonViolatorData& data = common_violator_data_.at(pin);
+    logger_->report("{:>5} {:>10} {:>10} {}",
+                    data.path_count,
+                    delayAsString(data.slack_sum, 3, sta_),
+                    delayAsString(data.worst_slack, 3, sta_),
+                    network_->pathName(pin));
+  }
+}
+
 vector<const sta::Pin*> RepairTargetCollector::collectViolatorsByPin(
     int numPins,
     ViolatorSortType sort_type)
