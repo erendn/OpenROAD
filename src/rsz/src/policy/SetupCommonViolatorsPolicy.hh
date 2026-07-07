@@ -12,13 +12,15 @@ namespace rsz {
 // paths of multiple violating endpoints; one good move there improves many
 // endpoints at once.
 //
-// Per sweep, pins are ranked by the sum of slack of the endpoints whose worst
-// path crosses them (most negative first) and repaired one journaled move at a
-// time. Each move is accepted on global TNS improvement (WNS as tiebreak)
-// rather than a single endpoint's slack, so moves that help many endpoints
-// cannot be rejected for not helping a focus endpoint. The pin pool is
-// re-collected after every committed move because committed topology moves
-// (unbuffer, rebuffer) can delete instances backing pins collected earlier.
+// Per sweep, the pool is collected once, ranked by the sum of slack of the
+// endpoints whose worst path crosses each pin (most negative first), and
+// walked in one pass with one journaled move per pin. Each move is accepted
+// on global TNS improvement (WNS as tiebreak) rather than a single
+// endpoint's slack, so moves that help many endpoints cannot be rejected for
+// not helping a focus endpoint. Committed topology moves (unbuffer,
+// rebuffer) can delete instances backing pins collected earlier, so each pin
+// is guarded by name-based re-resolution (findPin) before it is touched;
+// the ranking itself is allowed to go stale within a sweep.
 class SetupCommonViolatorsPolicy : public SetupLegacyBase
 {
  public:

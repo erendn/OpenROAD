@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "MoveCommitter.hh"
@@ -98,30 +98,33 @@ void SetupCommonViolatorsPolicy::repairCommonViolators()
       break;
     }
 
-    // Pins attempted this sweep. Journal restores are pointer-stable and
-    // the pool is re-collected after every commit, so Pin* keys stay valid.
-    // FIXME: This may be redundant and cause runtime overhead.
-    std::unordered_set<const sta::Pin*> attempted;
+    // Names captured while every pool pin is alive; each pin is re-resolved
+    // by name before repair because committed unbuffer/rebuffer moves can
+    // delete instances collected earlier in the sweep (rebuffer removes
+    // existing buffers that were never a move's subject).  The ranking is
+    // allowed to go stale within a sweep; the next sweep re-collects.
+    std::vector<std::string> pin_names;
+    pin_names.reserve(pins.size());
+    for (const sta::Pin* pin : pins) {
+      pin_names.emplace_back(network_->pathName(pin));
+    }
+
+    int attempts = 0;
     int accepted = 0;
-    size_t index = 0;
-    while (index < pins.size()) {
-      if (top_pins > 0 && std::cmp_greater_equal(attempted.size(), top_pins)) {
+    for (size_t index = 0; index < pins.size(); index++) {
+      if (top_pins > 0 && attempts >= top_pins) {
         break;
       }
-      const sta::Pin* pin = pins[index++];
-      if (attempted.contains(pin)) {
+      const sta::Pin* pin = pins[index];
+      // Liveness guard: skip pins deleted by an earlier committed move this
+      // sweep (findPin misses) without dereferencing the stale pointer.
+      if (network_->findPin(pin_names[index]) != pin) {
         continue;
       }
-      attempted.insert(pin);
+      attempts++;
 
       if (repairPinJournaled(pin, tns, wns, phase_marker)) {
         accepted++;
-        // Committed topology moves (unbuffer, rebuffer) can delete instances
-        // backing pins collected earlier; re-collect so every remaining Pin* is
-        // valid.
-        pins = target_collector_->collectCommonViolators(min_path_count,
-                                                         max_endpoints);
-        index = 0;
       }
 
       if (resizer_.overMaxArea()) {
@@ -138,7 +141,7 @@ void SetupCommonViolatorsPolicy::repairCommonViolators()
                "accepted {} moves, TNS {}",
                phase_marker,
                sweep,
-               attempted.size(),
+               attempts,
                accepted,
                delayAsString(tns, 1, sta_));
 
@@ -165,6 +168,11 @@ bool SetupCommonViolatorsPolicy::repairPinJournaled(const sta::Pin* pin,
   // The pin's own worst slack, not a focus endpoint's slack: makePinTarget
   // builds the target on this pin's worst path.
   const sta::Slack focus_slack = sta_->slack(drvr_vertex, max_);
+  // Stale-ranking guard: earlier accepted moves this sweep may have already
+  // fixed this pin's paths; a move here cannot improve TNS, so skip it.
+  if (sta::fuzzyGreaterEqual(focus_slack, config_.setup_slack_margin)) {
+    return false;
+  }
 
   committer_.beginJournal();
   Target target;
