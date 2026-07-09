@@ -73,6 +73,7 @@
 #include "sta/NetworkCmp.hh"
 #include "sta/Parasitics.hh"
 #include "sta/ParasiticsClass.hh"
+#include "sta/PathEnd.hh"
 #include "sta/PortDirection.hh"
 #include "sta/Scene.hh"
 #include "sta/Sdc.hh"
@@ -81,6 +82,7 @@
 #include "sta/SearchPred.hh"
 #include "sta/StringUtil.hh"
 #include "sta/TimingArc.hh"
+#include "sta/VisitPathEnds.hh"
 #include "sta/TimingModel.hh"
 #include "sta/TimingRole.hh"
 #include "sta/Transition.hh"
@@ -1000,6 +1002,141 @@ void Resizer::reportFastBufferSizes()
   }
   logger_->report("{:->80}", "");
 }
+
+////////////////////////////////////////////////////////////////
+
+namespace {
+
+// Mirrors sta::MinPeriodEndVisitor (sta/search/Sta.cc). We can't reach the
+// private class, so replicate its filter: intra-clock, same-transition,
+// non-MCP, setup, check/output_delay endpoints. Also tracks the worst-slack
+// endpoint so reportFmaxPaths can name the pin that limits Fmax.
+class FmaxPathVisitor : public sta::PathEndVisitor
+{
+ public:
+  FmaxPathVisitor(const sta::Clock* clk,
+                  bool include_port_paths,
+                  sta::StaState* sta)
+      : clk_(clk), include_port_paths_(include_port_paths), sta_(sta)
+  {
+  }
+  FmaxPathVisitor(const FmaxPathVisitor&) = default;
+  sta::PathEndVisitor* copy() const override
+  {
+    return new FmaxPathVisitor(*this);
+  }
+
+  void visit(sta::PathEnd* path_end) override
+  {
+    sta::Network* network = sta_->network();
+    sta::Path* path = path_end->path();
+    const sta::ClockEdge* src_edge = path_end->sourceClkEdge(sta_);
+    const sta::ClockEdge* tgt_edge = path_end->targetClkEdge(sta_);
+    if (src_edge == nullptr || tgt_edge == nullptr) {
+      return;
+    }
+    const sta::PathEnd::Type end_type = path_end->type();
+    if (end_type != sta::PathEnd::Type::check
+        && end_type != sta::PathEnd::Type::output_delay) {
+      return;
+    }
+    if (path->minMax(sta_) != sta::MinMax::max()) {
+      return;
+    }
+    if (src_edge->clock() != clk_ || tgt_edge->clock() != clk_) {
+      return;
+    }
+    if (src_edge->transition() != tgt_edge->transition()) {
+      return;
+    }
+    if (path_end->multiCyclePath() != nullptr) {
+      return;
+    }
+    const sta::Pin* end_pin = path->pin(sta_);
+    if (!include_port_paths_ && end_pin != nullptr
+        && network->isTopLevelPort(end_pin)) {
+      return;
+    }
+    const sta::Slack slack = path_end->slack(sta_);
+    const float period
+        = clk_->period() - sta::delayAsFloat(slack, sta::MinMax::min(), sta_);
+    if (period > min_period_) {
+      min_period_ = period;
+      worst_slack_ = sta::delayAsFloat(slack);
+      worst_end_pin_ = end_pin;
+      worst_tgt_rf_ = tgt_edge->transition();
+    }
+  }
+
+  float minPeriod() const { return min_period_; }
+  float worstSlack() const { return worst_slack_; }
+  const sta::Pin* worstEndPin() const { return worst_end_pin_; }
+  const sta::RiseFall* worstTgtRiseFall() const { return worst_tgt_rf_; }
+
+ private:
+  const sta::Clock* clk_;
+  bool include_port_paths_;
+  sta::StaState* sta_;
+  float min_period_{0.0f};
+  float worst_slack_{0.0f};
+  const sta::Pin* worst_end_pin_{nullptr};
+  const sta::RiseFall* worst_tgt_rf_{nullptr};
+};
+
+}  // namespace
+
+void Resizer::reportFmaxPaths()
+{
+  initBlock();
+  sta_->ensureLevelized();
+  sta_->searchPreamble();
+  sta_->findRequireds();
+
+  sta::VisitPathEnds visit_ends(sta_);
+  sta::Sdc* sdc = sta_->cmdMode()->sdc();
+  bool any_clock = false;
+  for (sta::Clock* clk : sdc->clocks()) {
+    any_clock = true;
+    FmaxPathVisitor visitor(clk, /*include_port_paths=*/true, sta_);
+    for (sta::Vertex* vertex : sta_->endpoints()) {
+      visit_ends.visitPathEnds(vertex, &visitor);
+    }
+    const float min_period = visitor.minPeriod();
+    const std::string clk_name = clk->name();
+    if (min_period <= 0.0f) {
+      logger_->info(RSZ,
+                    430,
+                    "Fmax debug: clock '{}' period={:.4f}ns has no "
+                    "in-clock same-transition non-MCP setup endpoint.",
+                    clk_name,
+                    clk->period() * 1e9);
+      continue;
+    }
+    const float fmax_hz = 1.0f / min_period;
+    const std::string pin_name = (visitor.worstEndPin() != nullptr)
+                                     ? network_->pathName(visitor.worstEndPin())
+                                     : std::string("<none>");
+    const sta::RiseFall* rf = visitor.worstTgtRiseFall();
+    const std::string rf_name = (rf == nullptr) ? "?" : rf->name();
+    logger_->info(RSZ,
+                  431,
+                  "Fmax debug: clock '{}' period={:.4f}ns "
+                  "min_period={:.4f}ns Fmax={:.4f}GHz "
+                  "worst_endpoint={} ({}) slack={:.4f}ns",
+                  clk_name,
+                  clk->period() * 1e9,
+                  min_period * 1e9,
+                  fmax_hz * 1e-9,
+                  pin_name,
+                  rf_name,
+                  visitor.worstSlack() * 1e9);
+  }
+  if (!any_clock) {
+    logger_->info(RSZ, 432, "Fmax debug: no clocks defined.");
+  }
+}
+
+////////////////////////////////////////////////////////////////
 
 #define debugRDPrint1(format_str, ...) \
   debugPrint(logger_, utl::RSZ, "resizer", 1, format_str, ##__VA_ARGS__)

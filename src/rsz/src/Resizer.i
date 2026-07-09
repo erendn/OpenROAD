@@ -648,6 +648,14 @@ report_fast_buffer_sizes()
   resizer->reportFastBufferSizes();
 }
 
+void
+report_fmax_paths_cmd()
+{
+  ensureLinked();
+  Resizer *resizer = getResizer();
+  resizer->reportFmaxPaths();
+}
+
 void set_debug_cmd(const char* net_name,
                    const bool subdivide_step)
 {

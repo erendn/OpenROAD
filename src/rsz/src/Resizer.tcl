@@ -1047,6 +1047,13 @@ proc report_buffers { args } {
   rsz::report_buffers_cmd $filtered
 }
 
+sta::define_cmd_args "report_fmax_paths" {}
+
+proc report_fmax_paths { args } {
+  sta::parse_key_args "report_fmax_paths" args keys {} flags {}
+  rsz::report_fmax_paths_cmd
+}
+
 sta::define_cmd_args "report_delay_estimator_accuracy" {\
   -inst instance \
   -lib_cell lib_cell \
