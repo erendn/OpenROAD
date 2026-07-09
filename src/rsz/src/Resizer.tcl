@@ -804,6 +804,7 @@ proc report_opt_config { args } {
 sta::define_cmd_args "set_global_sizing_config" { \
     [-presize_mode mode] \
     [-include_clock_network bool] \
+    [-include_flip_flops bool] \
     [-setup_slack_margin margin] \
     [-max_iterations iterations] \
     [-beta value] \
@@ -814,9 +815,9 @@ sta::define_cmd_args "set_global_sizing_config" { \
 
 proc set_global_sizing_config { args } {
   sta::parse_key_args "set_global_sizing_config" args \
-    keys {-presize_mode -include_clock_network -setup_slack_margin \
-            -max_iterations -beta -mu_exponent -lambda_floor -timing_bias \
-            -budget_safety_factor} flags {}
+    keys {-presize_mode -include_clock_network -include_flip_flops \
+            -setup_slack_margin -max_iterations -beta -mu_exponent \
+            -lambda_floor -timing_bias -budget_safety_factor} flags {}
 
   if { [info exists keys(-presize_mode)] } {
     rsz::set_string_prop $keys(-presize_mode) "-presize_mode" \
@@ -825,6 +826,10 @@ proc set_global_sizing_config { args } {
   if { [info exists keys(-include_clock_network)] } {
     rsz::set_boolean_prop $keys(-include_clock_network) \
       "-include_clock_network" "gs_include_clock_network"
+  }
+  if { [info exists keys(-include_flip_flops)] } {
+    rsz::set_boolean_prop $keys(-include_flip_flops) \
+      "-include_flip_flops" "gs_include_flip_flops"
   }
   if { [info exists keys(-setup_slack_margin)] } {
     rsz::set_double_prop $keys(-setup_slack_margin) \
@@ -858,6 +863,7 @@ proc set_global_sizing_config { args } {
 sta::define_cmd_args "reset_global_sizing_config" { \
     [-presize_mode] \
     [-include_clock_network] \
+    [-include_flip_flops] \
     [-setup_slack_margin] \
     [-max_iterations] \
     [-beta] \
@@ -868,9 +874,9 @@ sta::define_cmd_args "reset_global_sizing_config" { \
 
 proc reset_global_sizing_config { args } {
   sta::parse_key_args "reset_global_sizing_config" args \
-    keys {} flags {-presize_mode -include_clock_network -setup_slack_margin \
-                     -max_iterations -beta -mu_exponent -lambda_floor \
-                     -timing_bias -budget_safety_factor}
+    keys {} flags {-presize_mode -include_clock_network -include_flip_flops \
+                     -setup_slack_margin -max_iterations -beta -mu_exponent \
+                     -lambda_floor -timing_bias -budget_safety_factor}
   set reset_all [expr { [array size flags] == 0 }]
 
   if { $reset_all || [info exists flags(-presize_mode)] } {
@@ -878,6 +884,9 @@ proc reset_global_sizing_config { args } {
   }
   if { $reset_all || [info exists flags(-include_clock_network)] } {
     rsz::clear_bool_prop "gs_include_clock_network"
+  }
+  if { $reset_all || [info exists flags(-include_flip_flops)] } {
+    rsz::clear_bool_prop "gs_include_flip_flops"
   }
   if { $reset_all || [info exists flags(-setup_slack_margin)] } {
     rsz::clear_double_prop "gs_setup_slack_margin"
@@ -919,6 +928,13 @@ proc report_global_sizing_config { args } {
   if { $prop ne "NULL" && $prop ne "" } {
     set v [$prop getValue]
     set include_clock_network_value [expr { $v ? "true" : "false" }]
+  }
+
+  set include_flip_flops_value "undefined"
+  set prop [odb::dbBoolProperty_find $block "gs_include_flip_flops"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set v [$prop getValue]
+    set include_flip_flops_value [expr { $v ? "true" : "false" }]
   }
 
   set setup_slack_margin_value "undefined"
@@ -967,6 +983,7 @@ proc report_global_sizing_config { args } {
   puts "Global sizing config:"
   puts "-presize_mode:           $presize_mode_value"
   puts "-include_clock_network:  $include_clock_network_value"
+  puts "-include_flip_flops:     $include_flip_flops_value"
   puts "-setup_slack_margin:     $setup_slack_margin_value"
   puts "-max_iterations:         $max_iterations_value"
   puts "-beta:                   $beta_value"

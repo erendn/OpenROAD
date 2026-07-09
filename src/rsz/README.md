@@ -464,6 +464,7 @@ should leave at their defaults.
 set_global_sizing_config
     [-presize_mode mode]
     [-include_clock_network boolean_value]
+    [-include_flip_flops boolean_value]
     [-setup_slack_margin float_value]
     [-max_iterations int_value]
     [-beta float_value]
@@ -479,6 +480,7 @@ set_global_sizing_config
 | ----- | ----- |
 | `-presize_mode` | Pre-LR initialization. One of `disabled` (default), `min_size_max_vt` (replace every editable instance with its smallest-leakage equivalent), or `max_size_min_vt` (replace every editable instance with its largest-leakage equivalent). |
 | `-include_clock_network` | If true, allow global sizing to size clock network instances. Default false (clock instances are excluded). |
+| `-include_flip_flops` | If true (default), allow global sizing to size sequential cells (flip-flops, latches). Set to false to isolate whether FF sizing is the source of clock-latency drift / Fmax regressions. |
 | `-setup_slack_margin` | WNS target for the LR convergence check. Default 0.0. |
 | `-max_iterations` | Maximum LR outer-loop iterations. Default 20. |
 | `-beta` | Step size α for the dual-subgradient update on λ. Default 0.6. |
@@ -508,6 +510,7 @@ policy's built-in defaults.
 reset_global_sizing_config
     [-presize_mode]
     [-include_clock_network]
+    [-include_flip_flops]
     [-setup_slack_margin]
     [-max_iterations]
     [-beta]

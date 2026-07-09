@@ -24,6 +24,10 @@ struct GlobalSizingConfig
   // instances by default. Can be enabled for post-CTS timing repair for better
   // clock performance.
   bool include_clock_network = false;
+  // Optional flip-flop sizing: When false, sequential cells (any Liberty cell
+  // with sequentials) are excluded from LR sizing and presize. Useful for
+  // isolating whether FF sizing is the source of clock-latency / Fmax drift.
+  bool include_flip_flops = true;
   float setup_slack_margin = 0.0f;
   int max_iterations = 20;
   // Step size α for the dual-subgradient update on λ.

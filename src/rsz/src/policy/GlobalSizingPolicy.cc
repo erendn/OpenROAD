@@ -123,7 +123,8 @@ sta::LibertyCell* GlobalSizingPolicy::selectPresizeCell(
 }
 
 int GlobalSizingPolicy::applyPresize(const GlobalSizingConfig::PresizeMode mode,
-                                     const bool include_clock_network)
+                                     const bool include_clock_network,
+                                     const bool include_flip_flops)
 {
   if (mode == GlobalSizingConfig::PresizeMode::kDisabled) {
     return 0;
@@ -165,9 +166,12 @@ int GlobalSizingPolicy::applyPresize(const GlobalSizingConfig::PresizeMode mode,
     if (is_clock) {
       continue;
     }
-    ++editable_count;
-
     sta::LibertyCell* current_cell = network_->libertyCell(inst);
+    if (!include_flip_flops && current_cell != nullptr
+        && current_cell->hasSequentials()) {
+      continue;
+    }
+    ++editable_count;
     sta::LibertyCell* replacement
         = selectPresizeCell(current_cell, mode, presize_cell_cache);
     if (replacement != current_cell
@@ -689,6 +693,12 @@ std::vector<LRSubproblem::GateSnapshot> GlobalSizingPolicy::buildSnapshots()
       network_->leafInstanceIterator());
   while (iit->hasNext()) {
     sta::Instance* inst = iit->next();
+    if (!gs_config_.include_flip_flops) {
+      sta::LibertyCell* cell = network_->libertyCell(inst);
+      if (cell != nullptr && cell->hasSequentials()) {
+        continue;
+      }
+    }
     LRSubproblem::GateSnapshot snap;
     if (subproblem_->snapshot(inst,
                               lambda_.data(),
@@ -975,7 +985,9 @@ void GlobalSizingPolicy::iterate()
   // decision. Inner LR-loop checkpoints nest under this outer ECO.
   resizer_.journalBegin();
 
-  applyPresize(gs_config_.presize_mode, gs_config_.include_clock_network);
+  applyPresize(gs_config_.presize_mode,
+               gs_config_.include_clock_network,
+               gs_config_.include_flip_flops);
 
   allocate();
   seedMultipliers(gs_config_);

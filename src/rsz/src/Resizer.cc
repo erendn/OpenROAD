@@ -588,6 +588,10 @@ void Resizer::initBlock()
       = dbBoolProperty::find(block_, "gs_include_clock_network")) {
     global_sizing_config_.include_clock_network = p->getValue();
   }
+  if (dbBoolProperty* p
+      = dbBoolProperty::find(block_, "gs_include_flip_flops")) {
+    global_sizing_config_.include_flip_flops = p->getValue();
+  }
   if (dbDoubleProperty* p
       = dbDoubleProperty::find(block_, "gs_setup_slack_margin")) {
     global_sizing_config_.setup_slack_margin
