@@ -1004,135 +1004,412 @@ void Resizer::reportFastBufferSizes()
 }
 
 ////////////////////////////////////////////////////////////////
+// Fmax debug helpers.
+//
+// find_clk_min_period (STA) computes 1/Fmax per clock via a hidden visitor
+// that filters path ends: intra-clock, same-transition, non-MCP, setup,
+// check/output_delay. These helpers replicate that filter so we can:
+//   * name the endpoint that limits Fmax for each clock
+//   * count why other path ends were rejected
+//   * probe a single endpoint and see which of its path ends Fmax uses vs.
+//     which it drops (the common source of "Fmax says +slack, report_checks
+//     says -slack for the same endpoint" surprises).
 
 namespace {
 
-// Mirrors sta::MinPeriodEndVisitor (sta/search/Sta.cc). We can't reach the
-// private class, so replicate its filter: intra-clock, same-transition,
-// non-MCP, setup, check/output_delay endpoints. Also tracks the worst-slack
-// endpoint so reportFmaxPaths can name the pin that limits Fmax.
-class FmaxPathVisitor : public sta::PathEndVisitor
+// Reason a PathEnd is excluded from find_clk_min_period, or kInclude.
+enum class FmaxReject {
+  kInclude,
+  kEndType,       // not check / output_delay
+  kNotSetup,      // path direction != max
+  kNullClkEdge,   // src or tgt clock edge missing
+  kSrcClkOther,   // src edge belongs to a different clock
+  kTgtClkOther,   // tgt edge belongs to a different clock
+  kTransition,    // src rise/fall != tgt rise/fall
+  kMultiCycle,    // MCP endpoint
+  kPortPath,      // top-level port and include_port_paths=false
+};
+
+const char* fmaxRejectName(FmaxReject r)
+{
+  switch (r) {
+    case FmaxReject::kInclude:      return "included";
+    case FmaxReject::kEndType:      return "not-check/output_delay";
+    case FmaxReject::kNotSetup:     return "not-setup";
+    case FmaxReject::kNullClkEdge:  return "null-clk-edge";
+    case FmaxReject::kSrcClkOther:  return "src-other-clock";
+    case FmaxReject::kTgtClkOther:  return "tgt-other-clock";
+    case FmaxReject::kTransition:   return "transition-mismatch";
+    case FmaxReject::kMultiCycle:   return "multi-cycle-path";
+    case FmaxReject::kPortPath:     return "top-port-excluded";
+  }
+  return "?";
+}
+
+// Classify one PathEnd against the find_clk_min_period filter for `clk`.
+FmaxReject classifyPathEnd(sta::PathEnd* pe,
+                           const sta::Clock* clk,
+                           bool include_port_paths,
+                           sta::StaState* sta)
+{
+  const sta::PathEnd::Type end_type = pe->type();
+  if (end_type != sta::PathEnd::Type::check
+      && end_type != sta::PathEnd::Type::output_delay) {
+    return FmaxReject::kEndType;
+  }
+  if (pe->path()->minMax(sta) != sta::MinMax::max()) {
+    return FmaxReject::kNotSetup;
+  }
+  const sta::ClockEdge* src = pe->sourceClkEdge(sta);
+  const sta::ClockEdge* tgt = pe->targetClkEdge(sta);
+  if (src == nullptr || tgt == nullptr) {
+    return FmaxReject::kNullClkEdge;
+  }
+  if (src->clock() != clk) {
+    return FmaxReject::kSrcClkOther;
+  }
+  if (tgt->clock() != clk) {
+    return FmaxReject::kTgtClkOther;
+  }
+  if (src->transition() != tgt->transition()) {
+    return FmaxReject::kTransition;
+  }
+  if (pe->multiCyclePath() != nullptr) {
+    return FmaxReject::kMultiCycle;
+  }
+  if (!include_port_paths) {
+    const sta::Pin* end_pin = pe->path()->pin(sta);
+    if (end_pin != nullptr && sta->network()->isTopLevelPort(end_pin)) {
+      return FmaxReject::kPortPath;
+    }
+  }
+  return FmaxReject::kInclude;
+}
+
+// Aggregates every included path end into a ranked table and tallies reject
+// reasons. Owns nothing external.
+class FmaxClockVisitor : public sta::PathEndVisitor
 {
  public:
-  FmaxPathVisitor(const sta::Clock* clk,
-                  bool include_port_paths,
-                  sta::StaState* sta)
+  struct Candidate {
+    const sta::Pin* end_pin{nullptr};
+    float slack{0.0f};
+    float period{0.0f};  // clk_period - slack
+    const sta::RiseFall* src_rf{nullptr};
+    const sta::RiseFall* tgt_rf{nullptr};
+    sta::PathEnd::Type end_type{sta::PathEnd::Type::check};
+  };
+
+  FmaxClockVisitor(const sta::Clock* clk,
+                   bool include_port_paths,
+                   sta::StaState* sta)
       : clk_(clk), include_port_paths_(include_port_paths), sta_(sta)
   {
   }
-  FmaxPathVisitor(const FmaxPathVisitor&) = default;
+  FmaxClockVisitor(const FmaxClockVisitor&) = default;
   sta::PathEndVisitor* copy() const override
   {
-    return new FmaxPathVisitor(*this);
+    return new FmaxClockVisitor(*this);
   }
 
-  void visit(sta::PathEnd* path_end) override
+  void visit(sta::PathEnd* pe) override
   {
-    sta::Network* network = sta_->network();
-    sta::Path* path = path_end->path();
-    const sta::ClockEdge* src_edge = path_end->sourceClkEdge(sta_);
-    const sta::ClockEdge* tgt_edge = path_end->targetClkEdge(sta_);
-    if (src_edge == nullptr || tgt_edge == nullptr) {
+    const FmaxReject reason
+        = classifyPathEnd(pe, clk_, include_port_paths_, sta_);
+    ++rejects_[static_cast<size_t>(reason)];
+    if (reason != FmaxReject::kInclude) {
       return;
     }
-    const sta::PathEnd::Type end_type = path_end->type();
-    if (end_type != sta::PathEnd::Type::check
-        && end_type != sta::PathEnd::Type::output_delay) {
-      return;
-    }
-    if (path->minMax(sta_) != sta::MinMax::max()) {
-      return;
-    }
-    if (src_edge->clock() != clk_ || tgt_edge->clock() != clk_) {
-      return;
-    }
-    if (src_edge->transition() != tgt_edge->transition()) {
-      return;
-    }
-    if (path_end->multiCyclePath() != nullptr) {
-      return;
-    }
-    const sta::Pin* end_pin = path->pin(sta_);
-    if (!include_port_paths_ && end_pin != nullptr
-        && network->isTopLevelPort(end_pin)) {
-      return;
-    }
-    const sta::Slack slack = path_end->slack(sta_);
-    const float period
-        = clk_->period() - sta::delayAsFloat(slack, sta::MinMax::min(), sta_);
-    if (period > min_period_) {
-      min_period_ = period;
-      worst_slack_ = sta::delayAsFloat(slack);
-      worst_end_pin_ = end_pin;
-      worst_tgt_rf_ = tgt_edge->transition();
-    }
+    const sta::Slack slack = pe->slack(sta_);
+    const float slack_f
+        = sta::delayAsFloat(slack, sta::MinMax::min(), sta_);
+    Candidate c;
+    c.end_pin = pe->path()->pin(sta_);
+    c.slack = sta::delayAsFloat(slack);
+    c.period = clk_->period() - slack_f;
+    c.src_rf = pe->sourceClkEdge(sta_)->transition();
+    c.tgt_rf = pe->targetClkEdge(sta_)->transition();
+    c.end_type = pe->type();
+    candidates_.push_back(c);
   }
 
-  float minPeriod() const { return min_period_; }
-  float worstSlack() const { return worst_slack_; }
-  const sta::Pin* worstEndPin() const { return worst_end_pin_; }
-  const sta::RiseFall* worstTgtRiseFall() const { return worst_tgt_rf_; }
+  int rejectCount(FmaxReject r) const
+  {
+    return rejects_[static_cast<size_t>(r)];
+  }
+  const std::vector<Candidate>& candidates() const { return candidates_; }
 
  private:
   const sta::Clock* clk_;
   bool include_port_paths_;
   sta::StaState* sta_;
-  float min_period_{0.0f};
-  float worst_slack_{0.0f};
-  const sta::Pin* worst_end_pin_{nullptr};
-  const sta::RiseFall* worst_tgt_rf_{nullptr};
+  std::array<int, 9> rejects_{};
+  std::vector<Candidate> candidates_;
 };
+
+// Captures every path end for one probed endpoint vertex with its filter
+// classification. Used by reportFmaxEndpoint.
+class EndpointPathEndVisitor : public sta::PathEndVisitor
+{
+ public:
+  struct Row {
+    FmaxReject reason;
+    sta::PathEnd::Type end_type;
+    const sta::Clock* src_clk{nullptr};
+    const sta::Clock* tgt_clk{nullptr};
+    const sta::RiseFall* src_rf{nullptr};
+    const sta::RiseFall* tgt_rf{nullptr};
+    float slack{0.0f};
+    int mcp_cycles{0};  // 0 if not MCP
+  };
+
+  EndpointPathEndVisitor(const sta::Clock* clk,
+                         bool include_port_paths,
+                         sta::StaState* sta)
+      : clk_(clk), include_port_paths_(include_port_paths), sta_(sta)
+  {
+  }
+  EndpointPathEndVisitor(const EndpointPathEndVisitor&) = default;
+  sta::PathEndVisitor* copy() const override
+  {
+    return new EndpointPathEndVisitor(*this);
+  }
+
+  void visit(sta::PathEnd* pe) override
+  {
+    Row r;
+    r.reason = classifyPathEnd(pe, clk_, include_port_paths_, sta_);
+    r.end_type = pe->type();
+    const sta::ClockEdge* se = pe->sourceClkEdge(sta_);
+    const sta::ClockEdge* te = pe->targetClkEdge(sta_);
+    r.src_clk = (se != nullptr) ? se->clock() : nullptr;
+    r.tgt_clk = (te != nullptr) ? te->clock() : nullptr;
+    r.src_rf = (se != nullptr) ? se->transition() : nullptr;
+    r.tgt_rf = (te != nullptr) ? te->transition() : nullptr;
+    r.slack = sta::delayAsFloat(pe->slack(sta_));
+    if (const sta::MultiCyclePath* mcp = pe->multiCyclePath()) {
+      // Fold the internal multiplier to a positive integer for reporting.
+      r.mcp_cycles = 1;  // presence is what matters for the filter
+      (void) mcp;
+    }
+    rows_.push_back(r);
+  }
+
+  const std::vector<Row>& rows() const { return rows_; }
+
+ private:
+  const sta::Clock* clk_;
+  bool include_port_paths_;
+  sta::StaState* sta_;
+  std::vector<Row> rows_;
+};
+
+// Build the transition-aware `report_checks -to ...` hint.
+std::string reportChecksHint(const std::string& end_name,
+                             const sta::RiseFall* tgt_rf)
+{
+  std::string cmd = "report_checks -to {" + end_name + "}";
+  if (tgt_rf == sta::RiseFall::rise()) {
+    cmd += " -rise_to {" + end_name + "}";
+  } else if (tgt_rf == sta::RiseFall::fall()) {
+    cmd += " -fall_to {" + end_name + "}";
+  }
+  cmd += " -group_count 1 -format full_clock_expanded";
+  return cmd;
+}
 
 }  // namespace
 
-void Resizer::reportFmaxPaths()
+void Resizer::reportFmaxPaths(int top_n, bool verbose)
 {
   initBlock();
   sta_->ensureLevelized();
   sta_->searchPreamble();
   sta_->findRequireds();
 
+  if (top_n < 1) {
+    top_n = 1;
+  }
+
   sta::VisitPathEnds visit_ends(sta_);
   sta::Sdc* sdc = sta_->cmdMode()->sdc();
   bool any_clock = false;
   for (sta::Clock* clk : sdc->clocks()) {
     any_clock = true;
-    FmaxPathVisitor visitor(clk, /*include_port_paths=*/true, sta_);
+    FmaxClockVisitor visitor(clk, /*include_port_paths=*/true, sta_);
     for (sta::Vertex* vertex : sta_->endpoints()) {
       visit_ends.visitPathEnds(vertex, &visitor);
     }
-    const float min_period = visitor.minPeriod();
+
     const std::string clk_name = clk->name();
-    if (min_period <= 0.0f) {
+    const float clk_period = clk->period();
+    std::vector<FmaxClockVisitor::Candidate> ranked = visitor.candidates();
+    std::sort(ranked.begin(), ranked.end(),
+              [](const auto& a, const auto& b) { return a.period > b.period; });
+
+    if (ranked.empty()) {
       logger_->info(RSZ,
                     430,
                     "Fmax debug: clock '{}' period={:.4f}ns has no "
                     "in-clock same-transition non-MCP setup endpoint.",
                     clk_name,
-                    clk->period() * 1e9);
+                    clk_period * 1e9);
+      if (verbose) {
+        // Even when nothing survives, report why so the user can see it.
+        logger_->report(
+            "  rejected path-ends: end_type={} not_setup={} null_clk={} "
+            "src_other={} tgt_other={} transition={} mcp={} port_path={}",
+            visitor.rejectCount(FmaxReject::kEndType),
+            visitor.rejectCount(FmaxReject::kNotSetup),
+            visitor.rejectCount(FmaxReject::kNullClkEdge),
+            visitor.rejectCount(FmaxReject::kSrcClkOther),
+            visitor.rejectCount(FmaxReject::kTgtClkOther),
+            visitor.rejectCount(FmaxReject::kTransition),
+            visitor.rejectCount(FmaxReject::kMultiCycle),
+            visitor.rejectCount(FmaxReject::kPortPath));
+      }
       continue;
     }
+
+    const FmaxClockVisitor::Candidate& worst = ranked.front();
+    const float min_period = worst.period;
     const float fmax_hz = 1.0f / min_period;
-    const std::string pin_name = (visitor.worstEndPin() != nullptr)
-                                     ? network_->pathName(visitor.worstEndPin())
+    const std::string worst_pin_name
+        = (worst.end_pin != nullptr) ? network_->pathName(worst.end_pin)
                                      : std::string("<none>");
-    const sta::RiseFall* rf = visitor.worstTgtRiseFall();
-    const std::string rf_name = (rf == nullptr) ? "?" : rf->name();
-    logger_->info(RSZ,
-                  431,
-                  "Fmax debug: clock '{}' period={:.4f}ns "
-                  "min_period={:.4f}ns Fmax={:.4f}GHz "
-                  "worst_endpoint={} ({}) slack={:.4f}ns",
-                  clk_name,
-                  clk->period() * 1e9,
-                  min_period * 1e9,
-                  fmax_hz * 1e-9,
-                  pin_name,
-                  rf_name,
-                  visitor.worstSlack() * 1e9);
+    logger_->info(
+        RSZ,
+        431,
+        "Fmax debug: clock '{}' period={:.4f}ns "
+        "min_period={:.4f}ns Fmax={:.4f}GHz "
+        "worst_endpoint={} ({}->{}) slack={:.4f}ns",
+        clk_name,
+        clk_period * 1e9,
+        min_period * 1e9,
+        fmax_hz * 1e-9,
+        worst_pin_name,
+        (worst.src_rf == nullptr) ? "?" : worst.src_rf->name(),
+        (worst.tgt_rf == nullptr) ? "?" : worst.tgt_rf->name(),
+        worst.slack * 1e9);
+
+    if (verbose) {
+      const int included_count = visitor.rejectCount(FmaxReject::kInclude);
+      logger_->report(
+          "  path-end tally: included={} rejected: end_type={} not_setup={} "
+          "null_clk={} src_other={} tgt_other={} transition={} mcp={} "
+          "port_path={}",
+          included_count,
+          visitor.rejectCount(FmaxReject::kEndType),
+          visitor.rejectCount(FmaxReject::kNotSetup),
+          visitor.rejectCount(FmaxReject::kNullClkEdge),
+          visitor.rejectCount(FmaxReject::kSrcClkOther),
+          visitor.rejectCount(FmaxReject::kTgtClkOther),
+          visitor.rejectCount(FmaxReject::kTransition),
+          visitor.rejectCount(FmaxReject::kMultiCycle),
+          visitor.rejectCount(FmaxReject::kPortPath));
+    }
+
+    const int show = std::min<int>(top_n, ranked.size());
+    for (int i = 0; i < show; ++i) {
+      const FmaxClockVisitor::Candidate& c = ranked[i];
+      const std::string pin
+          = (c.end_pin != nullptr) ? network_->pathName(c.end_pin)
+                                   : std::string("<none>");
+      logger_->report(
+          "  #{} endpoint={} type={} src={} tgt={} slack={:.4f}ns "
+          "period_needed={:.4f}ns",
+          i + 1,
+          pin,
+          (c.end_type == sta::PathEnd::Type::output_delay) ? "output_delay"
+                                                           : "check",
+          (c.src_rf == nullptr) ? "?" : c.src_rf->name(),
+          (c.tgt_rf == nullptr) ? "?" : c.tgt_rf->name(),
+          c.slack * 1e9,
+          c.period * 1e9);
+      logger_->report("     {}", reportChecksHint(pin, c.tgt_rf));
+      logger_->report(
+          "     (use `report_fmax_endpoint {{{}}}` for all path ends)", pin);
+    }
   }
   if (!any_clock) {
     logger_->info(RSZ, 432, "Fmax debug: no clocks defined.");
+  }
+}
+
+void Resizer::reportFmaxEndpoint(const sta::Pin* pin)
+{
+  if (pin == nullptr) {
+    logger_->warn(RSZ, 433, "report_fmax_endpoint: pin is null.");
+    return;
+  }
+  initBlock();
+  sta_->ensureLevelized();
+  sta_->searchPreamble();
+  sta_->findRequireds();
+
+  sta::Vertex* vertex = graph_->pinLoadVertex(pin);
+  if (vertex == nullptr) {
+    vertex = graph_->pinDrvrVertex(pin);
+  }
+  if (vertex == nullptr) {
+    logger_->warn(RSZ,
+                  434,
+                  "report_fmax_endpoint: no graph vertex for pin '{}'.",
+                  network_->pathName(pin));
+    return;
+  }
+
+  const std::string pin_name = network_->pathName(pin);
+  sta::Sdc* sdc = sta_->cmdMode()->sdc();
+  sta::VisitPathEnds visit_ends(sta_);
+  bool any_row = false;
+
+  for (sta::Clock* clk : sdc->clocks()) {
+    EndpointPathEndVisitor probe(clk,
+                                 /*include_port_paths=*/true, sta_);
+    visit_ends.visitPathEnds(vertex, &probe);
+    if (probe.rows().empty()) {
+      continue;
+    }
+    any_row = true;
+    const std::string clk_name = clk->name();
+    logger_->info(
+        RSZ,
+        435,
+        "Fmax endpoint probe: pin '{}' vs clock '{}' period={:.4f}ns",
+        pin_name,
+        clk_name,
+        clk->period() * 1e9);
+    for (const EndpointPathEndVisitor::Row& r : probe.rows()) {
+      const float period = clk->period() - r.slack;
+      const bool included = (r.reason == FmaxReject::kInclude);
+      logger_->report(
+          "  [{}] type={} src_clk={} ({}) tgt_clk={} ({}) mcp={} "
+          "slack={:.4f}ns period_needed={:.4f}ns "
+          "{}",
+          included ? "IN" : "OUT",
+          (r.end_type == sta::PathEnd::Type::output_delay) ? "output_delay"
+          : (r.end_type == sta::PathEnd::Type::check)      ? "check"
+                                                           : "other",
+          (r.src_clk != nullptr) ? r.src_clk->name() : std::string("<none>"),
+          (r.src_rf != nullptr) ? r.src_rf->name() : "?",
+          (r.tgt_clk != nullptr) ? r.tgt_clk->name() : std::string("<none>"),
+          (r.tgt_rf != nullptr) ? r.tgt_rf->name() : "?",
+          (r.mcp_cycles > 0) ? "yes" : "no",
+          r.slack * 1e9,
+          period * 1e9,
+          included ? "(counts toward Fmax)"
+                   : std::string("(dropped: ")
+                         + fmaxRejectName(r.reason) + ")");
+    }
+    logger_->report("  {}", reportChecksHint(pin_name, nullptr));
+  }
+  if (!any_row) {
+    logger_->info(RSZ,
+                  436,
+                  "Fmax endpoint probe: pin '{}' has no path ends against "
+                  "any defined clock.",
+                  pin_name);
   }
 }
 

@@ -649,11 +649,19 @@ report_fast_buffer_sizes()
 }
 
 void
-report_fmax_paths_cmd()
+report_fmax_paths_cmd(int top_n, bool verbose)
 {
   ensureLinked();
   Resizer *resizer = getResizer();
-  resizer->reportFmaxPaths();
+  resizer->reportFmaxPaths(top_n, verbose);
+}
+
+void
+report_fmax_endpoint_cmd(const Pin *pin)
+{
+  ensureLinked();
+  Resizer *resizer = getResizer();
+  resizer->reportFmaxEndpoint(pin);
 }
 
 void set_debug_cmd(const char* net_name,

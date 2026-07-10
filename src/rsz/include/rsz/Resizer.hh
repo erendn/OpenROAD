@@ -317,11 +317,18 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
 
   void reportFastBufferSizes();
 
-  // Debug: for each clock, log the endpoint that determines find_clk_min_period
-  // (the Fmax bottleneck). Reproduces the intra-clock, same-transition,
-  // non-MCP filter used by MinPeriodEndVisitor and reports the worst endpoint's
-  // pin, slack, source/target clock edges, and the resulting min_period + Fmax.
-  void reportFmaxPaths();
+  // Debug: for each clock, log the top-N endpoints that determine
+  // find_clk_min_period. Reproduces the intra-clock, same-transition, non-MCP
+  // filter used by STA's MinPeriodEndVisitor. `verbose` adds per-clock
+  // path-end rejection counters so the user can see how many path ends were
+  // dropped by each filter rule.
+  void reportFmaxPaths(int top_n, bool verbose);
+
+  // Debug: for one pin, enumerate every path end (against every clock) and
+  // classify each as included/excluded by the Fmax filter, with slack and
+  // the reject reason. Prints a suggested `report_checks` command to inspect
+  // the path in detail.
+  void reportFmaxEndpoint(const sta::Pin* pin);
 
   void setMaxUtilization(double max_utilization);
   // Remove all or selected buffers from the netlist.

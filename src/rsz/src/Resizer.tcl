@@ -1047,11 +1047,31 @@ proc report_buffers { args } {
   rsz::report_buffers_cmd $filtered
 }
 
-sta::define_cmd_args "report_fmax_paths" {}
+sta::define_cmd_args "report_fmax_paths" { [-top N] [-verbose] }
 
 proc report_fmax_paths { args } {
-  sta::parse_key_args "report_fmax_paths" args keys {} flags {}
-  rsz::report_fmax_paths_cmd
+  sta::parse_key_args "report_fmax_paths" args \
+    keys {-top} flags {-verbose}
+  set top 1
+  if { [info exists keys(-top)] } {
+    sta::check_cardinal "-top" $keys(-top)
+    set top $keys(-top)
+  }
+  set verbose [info exists flags(-verbose)]
+  rsz::report_fmax_paths_cmd $top $verbose
+}
+
+sta::define_cmd_args "report_fmax_endpoint" { pin }
+
+proc report_fmax_endpoint { args } {
+  sta::parse_key_args "report_fmax_endpoint" args keys {} flags {}
+  if { [llength $args] != 1 } {
+    utl::error RSZ 437 "report_fmax_endpoint expects one pin argument."
+  }
+  set pin_arg [lindex $args 0]
+  # Accept either a pin object (from get_pin) or a hierarchical name string.
+  set pin [sta::get_port_pin_error "pin" $pin_arg]
+  rsz::report_fmax_endpoint_cmd $pin
 }
 
 sta::define_cmd_args "report_delay_estimator_accuracy" {\
