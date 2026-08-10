@@ -239,7 +239,28 @@ or_integration_tests(
     repair_fanout7_skip_pin_swap
     global_sizing
     global_sizing_threads
-    global_sizing_presize
+    global_sizing_cap_recheck
+    global_sizing_cap_recheck_gs
+    global_sizing_init_min_size
+    global_sizing_init_min_size_fixviol
+    global_sizing_init_max_size
+    global_sizing_init_average
+    global_sizing_init_random
+    global_sizing_preset
+    global_sizing_lambda_update
+    global_sizing_lambda_fresh_tennakoon
+    global_sizing_lambda_fresh_livramento
+    global_sizing_move_set
+    global_sizing_lambda_seed
+    global_sizing_mu_policy
+    global_sizing_cost_terms
+    global_sizing_sweep_engine
+    global_sizing_guard
+    global_sizing_termination
+    global_sizing_dont_touch
+    global_sizing_closable
+    global_sizing_chinnery
+    global_sizing_met_recovery
     inferred_clock_gator_time_borrow
     inferred_clock_gator_time_borrow_covered
     inferred_clock_gator_time_borrow_repair_pin

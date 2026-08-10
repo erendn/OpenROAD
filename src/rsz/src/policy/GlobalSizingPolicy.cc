@@ -4,41 +4,34 @@
 #include "GlobalSizingPolicy.hh"
 
 #include <algorithm>
-#include <cmath>
-#include <cstddef>
 #include <memory>
 #include <optional>
-#include <ranges>
-#include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 
-#include "LRSubproblem.hh"
 #include "OptimizationPolicy.hh"
 #include "OptimizerTypes.hh"
 #include "db_sta/dbNetwork.hh"
 #include "db_sta/dbSta.hh"
 #include "est/EstimateParasitics.h"
+#include "lr/BestTracker.hh"
+#include "lr/CostTerms.hh"
+#include "lr/FlowProjection.hh"
+#include "lr/InitPass.hh"
+#include "lr/LambdaSeeder.hh"
+#include "lr/LambdaUpdater.hh"
+#include "lr/LrState.hh"
+#include "lr/SweepEngine.hh"
+#include "lr/Termination.hh"
+#include "lr/TimingScale.hh"
 #include "odb/db.h"
 #include "rsz/GlobalSizingConfig.hh"
 #include "rsz/Resizer.hh"
-#include "sta/ArcDelayCalc.hh"
 #include "sta/Delay.hh"
 #include "sta/Fuzzy.hh"
-#include "sta/Graph.hh"
-#include "sta/GraphClass.hh"
-#include "sta/GraphDelayCalc.hh"
 #include "sta/Liberty.hh"
-#include "sta/LibertyClass.hh"
 #include "sta/Network.hh"
 #include "sta/NetworkClass.hh"
-#include "sta/PortDirection.hh"
 #include "sta/Scene.hh"
 #include "sta/Sta.hh"
-#include "sta/TimingArc.hh"
-#include "sta/TimingRole.hh"
-#include "sta/Transition.hh"
 #include "utl/Logger.h"
 #include "utl/ThreadPool.h"
 
@@ -55,514 +48,6 @@ GlobalSizingPolicy::GlobalSizingPolicy(Resizer& resizer,
 }
 
 GlobalSizingPolicy::~GlobalSizingPolicy() = default;
-
-sta::LibertyCell* GlobalSizingPolicy::selectPresizeCell(
-    sta::LibertyCell* current_cell,
-    const GlobalSizingConfig::PresizeMode mode,
-    PresizeCellCache& presize_cell_cache) const
-{
-  // Use the cache if this cell has been searched before
-  PresizeCellCache::iterator cache_itr = presize_cell_cache.find(current_cell);
-  if (cache_itr != presize_cell_cache.end()) {
-    return cache_itr->second;
-  }
-
-  const sta::LibertyCellSeq candidates
-      = resizer_.getSwappableCells(current_cell);
-
-  sta::LibertyCell* best = current_cell;
-  std::optional<float> best_leak = resizer_.cellLeakage(best);
-  // Lazily resolved on the first leakage tie; refreshed when best changes.
-  std::optional<float> best_drive;
-  for (sta::LibertyCell* candidate : candidates) {
-    const std::optional<float> candidate_leak = resizer_.cellLeakage(candidate);
-    if (!candidate_leak.has_value()) {
-      continue;
-    }
-
-    if (!best_leak.has_value()) {
-      best = candidate;
-      best_leak = candidate_leak;
-      best_drive.reset();
-      continue;
-    }
-
-    if (*candidate_leak != *best_leak) {
-      const bool better_leakage
-          = mode == GlobalSizingConfig::PresizeMode::kMinSizeMaxVt
-                ? *candidate_leak < *best_leak
-                : *candidate_leak > *best_leak;
-      if (better_leakage) {
-        best = candidate;
-        best_leak = candidate_leak;
-        best_drive.reset();
-      }
-      continue;
-    }
-
-    if (!best_drive.has_value()) {
-      best_drive = resizer_.cellDriveResistance(best);
-    }
-    const float candidate_drive = resizer_.cellDriveResistance(candidate);
-    if (candidate_drive == *best_drive) {
-      continue;
-    }
-    const bool better_drive
-        = mode == GlobalSizingConfig::PresizeMode::kMinSizeMaxVt
-              ? candidate_drive > *best_drive
-              : candidate_drive < *best_drive;
-    if (better_drive) {
-      best = candidate;
-      best_leak = candidate_leak;
-      best_drive = candidate_drive;
-    }
-  }
-
-  presize_cell_cache.emplace(current_cell, best);
-  return best;
-}
-
-int GlobalSizingPolicy::applyPresize(const GlobalSizingConfig::PresizeMode mode,
-                                     const bool include_clock_network)
-{
-  if (mode == GlobalSizingConfig::PresizeMode::kDisabled) {
-    return 0;
-  }
-
-  const char* target_cell
-      = mode == GlobalSizingConfig::PresizeMode::kMinSizeMaxVt
-            ? "smallest leakage Liberty cell"
-            : "largest leakage Liberty cell";
-  logger_->info(RSZ,
-                416,
-                "GLOBAL_SIZING: Presize {} enabled for {}.",
-                static_cast<int>(mode),
-                target_cell);
-
-  int editable_count = 0;
-  int replacements = 0;
-  PresizeCellCache presize_cell_cache;
-  std::unique_ptr<sta::LeafInstanceIterator> iit(
-      network_->leafInstanceIterator());
-  while (iit->hasNext()) {
-    sta::Instance* inst = iit->next();
-    if (!resizer_.isEditableLogicStdCell(inst)) {
-      continue;
-    }
-    bool is_clock = false;
-    if (!include_clock_network) {
-      std::unique_ptr<sta::InstancePinIterator> port_iter(
-          network_->pinIterator(inst));
-      while (port_iter->hasNext()) {
-        sta::Pin* pin = port_iter->next();
-        if (network_->direction(pin)->isOutput()
-            && !sta_->isClock(pin, sta_->cmdMode())) {
-          is_clock = true;
-          break;
-        }
-      }
-    }
-    if (is_clock) {
-      continue;
-    }
-    ++editable_count;
-
-    sta::LibertyCell* current_cell = network_->libertyCell(inst);
-    sta::LibertyCell* replacement
-        = selectPresizeCell(current_cell, mode, presize_cell_cache);
-    if (replacement != current_cell
-        && resizer_.replaceCell(inst, replacement)) {
-      ++replacements;
-    }
-  }
-
-  // Presize is applied into the outer journal in iterate(); seedMultipliers /
-  // projectFlowBalance / computeAutoTimingWeight need fresh slacks, so refresh
-  // parasitics + required times here.
-  if (replacements > 0) {
-    resizer_.updateParasiticsAndTiming();
-  }
-  logger_->info(RSZ,
-                415,
-                "GLOBAL_SIZING: Presize replaced {}/{} editable instances.",
-                replacements,
-                editable_count);
-  return replacements;
-}
-
-bool GlobalSizingPolicy::isDataArc(const sta::Edge* edge) const
-{
-  const sta::TimingRole* role = edge->role();
-  if (role != nullptr && role->isTimingCheck()) {
-    return false;
-  }
-  if (edge->isDisabledLoop()) {
-    return false;
-  }
-  if (role == sta::TimingRole::latchDtoQ()
-      || role == sta::TimingRole::latchEnToQ()) {
-    return false;
-  }
-  return true;
-}
-
-float GlobalSizingPolicy::edgeMaxArcDelay(sta::Edge* edge) const
-{
-  sta::TimingArcSet* arc_set = edge->timingArcSet();
-  if (arc_set == nullptr) {
-    return 0.0f;
-  }
-  float max_d = 0.0f;
-  for (sta::TimingArc* arc : arc_set->arcs()) {
-    const sta::ArcDelay d = graph_->arcDelay(edge, arc, dcalc_ap_);
-    const float df = sta::delayAsFloat(d);
-    max_d = std::max(df, max_d);
-  }
-  return max_d;
-}
-
-void GlobalSizingPolicy::allocate()
-{
-  // Ensure arc delays and endpoint slacks are up to date before we seed
-  sta_->findRequireds();
-  // DRC preambles the per-gate subproblem relies on later
-  sta_->checkCapacitancesPreamble(sta_->scenes());
-  sta_->checkSlewsPreamble();
-  sta_->checkFanoutPreamble();
-
-  const sta::Scene* scene = sta_->cmdScene();
-  dcalc_ap_ = scene->dcalcAnalysisPtIndex(policy_max_);
-
-  // Walk the graph once to discover max EdgeId (lambda_ is keyed by
-  // sta::Edge::id, which is sparse - size to max_id + 1)
-  sta::EdgeId max_edge_id = 0;
-  int data_edge_count = 0;
-  sta::VertexIterator vit(graph_);
-  while (vit.hasNext()) {
-    sta::Vertex* v = vit.next();
-    sta::VertexOutEdgeIterator eit(v, graph_);
-    while (eit.hasNext()) {
-      sta::Edge* e = eit.next();
-      if (!isDataArc(e)) {
-        continue;
-      }
-      const sta::EdgeId id = graph_->id(e);
-      max_edge_id = std::max(id, max_edge_id);
-      ++data_edge_count;
-    }
-  }
-
-  const size_t n_edges = static_cast<size_t>(max_edge_id) + 1;
-  lambda_.assign(n_edges, 0.0f);
-
-  // Endpoint bookkeeping
-  endpoint_vertices_.clear();
-  endpoint_index_.clear();
-  const sta::VertexSet& eps = sta_->endpoints();
-  endpoint_vertices_.reserve(eps.size());
-  endpoint_index_.reserve(eps.size());
-  for (sta::Vertex* v : eps) {
-    endpoint_index_.emplace(v, static_cast<int>(endpoint_vertices_.size()));
-    endpoint_vertices_.push_back(v);
-  }
-  mu_.assign(endpoint_vertices_.size(), 0.0f);
-
-  debugPrint(logger_,
-             RSZ,
-             "global_sizing",
-             2,
-             "LR allocate: edges={} (max_id={}), endpoints={}, dcalc_ap={}",
-             data_edge_count,
-             max_edge_id,
-             endpoint_vertices_.size(),
-             dcalc_ap_);
-}
-
-void GlobalSizingPolicy::seedMultipliers(const GlobalSizingConfig& params)
-{
-  // λ_e = d_e  (delay-proportional seed, max arc delay across rise/fall)
-  float lambda_sum = 0.0f;
-  float lambda_max = 0.0f;
-  int seeded = 0;
-  sta::VertexIterator vit(graph_);
-  while (vit.hasNext()) {
-    sta::Vertex* v = vit.next();
-    sta::VertexOutEdgeIterator eit(v, graph_);
-    while (eit.hasNext()) {
-      sta::Edge* e = eit.next();
-      if (!isDataArc(e)) {
-        continue;
-      }
-      const float d = edgeMaxArcDelay(e);
-      const sta::EdgeId id = graph_->id(e);
-      const float seed = std::max(d, params.lambda_floor);
-      lambda_[id] = seed;
-      lambda_sum += seed;
-      lambda_max = std::max(lambda_max, seed);
-      ++seeded;
-    }
-  }
-
-  // μ_k = max(0, margin - slack_k)^p  (WNS-biased endpoint seed).
-  // Then normalize so max(μ) = 1 - this decouples the LR pressure's scale from
-  // the raw slack units so that downstream λ·d terms are predictable.
-  float mu_max_raw = 0.0f;
-  int mu_nonzero = 0;
-  const float margin = params.setup_slack_margin;
-  const float p = params.mu_exponent;
-  for (size_t k = 0; k < endpoint_vertices_.size(); ++k) {
-    const sta::Slack slack = sta_->slack(endpoint_vertices_[k], policy_max_);
-    const float slack_f = sta::delayAsFloat(slack);
-    const float gap = margin - slack_f;
-    float mu = 0.0f;
-    if (gap > 0.0f) {
-      mu = std::pow(gap, p);
-      ++mu_nonzero;
-    }
-    mu_[k] = mu;
-    mu_max_raw = std::max(mu_max_raw, mu);
-  }
-  if (mu_max_raw > 0.0f) {
-    for (float& mu : mu_) {
-      mu /= mu_max_raw;
-    }
-  }
-  float mu_sum = 0.0f;
-  float mu_max = 0.0f;
-  for (const float mu : mu_) {
-    mu_sum += mu;
-    mu_max = std::max(mu_max, mu);
-  }
-
-  debugPrint(logger_,
-             RSZ,
-             "global_sizing",
-             2,
-             "LR seed: {} data arcs (λ sum={:.3g}, max={:.3g}, avg={:.3g}); "
-             "{}/{} endpoints violating (μ sum={:.3g}, max={:.3g})",
-             seeded,
-             lambda_sum,
-             lambda_max,
-             seeded ? lambda_sum / seeded : 0.0f,
-             mu_nonzero,
-             endpoint_vertices_.size(),
-             mu_sum,
-             mu_max);
-}
-
-void GlobalSizingPolicy::updateMultipliers(const GlobalSizingConfig& params)
-{
-  // μ: re-seed from current endpoint slacks. Fresh seed (rather than a
-  // multiplicative μ update) avoids the lock-in where an endpoint whose μ
-  // reached the floor can never re-activate when its slack regresses.
-  float mu_max_raw = 0.0f;
-  const float margin = params.setup_slack_margin;
-  const float p = params.mu_exponent;
-  int mu_nonzero = 0;
-  for (size_t k = 0; k < endpoint_vertices_.size(); ++k) {
-    const sta::Slack slack = sta_->slack(endpoint_vertices_[k], policy_max_);
-    const float slack_f = sta::delayAsFloat(slack);
-    const float gap = margin - slack_f;
-    float mu = 0.0f;
-    if (gap > 0.0f) {
-      mu = std::pow(gap, p);
-      ++mu_nonzero;
-    }
-    mu_[k] = mu;
-    mu_max_raw = std::max(mu_max_raw, mu);
-  }
-  if (mu_max_raw > 0.0f) {
-    for (float& mu : mu_) {
-      mu /= mu_max_raw;
-    }
-  }
-
-  // λ: dual-subgradient ascent.
-  //
-  //   g_e_norm = (d_e - (a_to - a_from)) / max(d_e, ε)   ∈ [-1, 0]
-  //   λ_e ← max(floor, λ_e · (1 + α · g_e_norm))
-  //
-  // tight arc (g=0)        → λ unchanged
-  // full slack (g=−1)      → λ ← (1-α)·λ
-  //
-  // Arcs touching unconstrained vertices (sentinel arrivals from no-clock
-  // PIs/POs) are skipped - those have no meaningful slack and projection
-  // alone determines their λ.
-  const float alpha = std::clamp(params.beta, 0.0f, 1.0f);
-  const float kArrivalSentinel = 1e6f;
-  float lam_sum = 0.0f;
-  float lam_max = 0.0f;
-  int updated = 0;
-  int skipped_unconstrained = 0;
-  int tight_arcs = 0;
-  sta::VertexIterator vit(graph_);
-  while (vit.hasNext()) {
-    sta::Vertex* v = vit.next();
-    sta::VertexOutEdgeIterator eit(v, graph_);
-    while (eit.hasNext()) {
-      sta::Edge* e = eit.next();
-      if (!isDataArc(e)) {
-        continue;
-      }
-      const sta::EdgeId id = graph_->id(e);
-      if (static_cast<size_t>(id) >= lambda_.size()) {
-        continue;
-      }
-      const float d = edgeMaxArcDelay(e);
-      sta::Vertex* from_v = e->from(graph_);
-      sta::Vertex* to_v = e->to(graph_);
-      const float a_from = sta::delayAsFloat(sta_->arrival(
-          from_v, sta::RiseFallBoth::riseFall(), sta_->scenes(), policy_max_));
-      const float a_to = sta::delayAsFloat(sta_->arrival(
-          to_v, sta::RiseFallBoth::riseFall(), sta_->scenes(), policy_max_));
-      if (std::fabs(a_from) >= kArrivalSentinel
-          || std::fabs(a_to) >= kArrivalSentinel) {
-        ++skipped_unconstrained;
-        lam_sum += lambda_[id];
-        lam_max = std::max(lam_max, lambda_[id]);
-        continue;
-      }
-      const float arrival_diff = a_to - a_from;
-      const float denom = std::max(d, params.lambda_floor);
-      const float g_norm = (d - arrival_diff) / denom;
-      const float g_clamped = std::clamp(g_norm, -1.0f, 0.0f);
-      if (g_clamped > -1e-6f) {
-        ++tight_arcs;
-      }
-      const float scale = 1.0f + alpha * g_clamped;
-      lambda_[id] = std::max(lambda_[id] * scale, params.lambda_floor);
-      lam_sum += lambda_[id];
-      lam_max = std::max(lam_max, lambda_[id]);
-      ++updated;
-    }
-  }
-
-  debugPrint(logger_,
-             RSZ,
-             "global_sizing",
-             2,
-             "LR update: {} arcs subgradient-stepped "
-             "({} tight, {} unconstrained skipped); "
-             "λ sum={:.3g} max={:.3g}; "
-             "{}/{} endpoints violating",
-             updated,
-             tight_arcs,
-             skipped_unconstrained,
-             lam_sum,
-             lam_max,
-             mu_nonzero,
-             endpoint_vertices_.size());
-}
-
-void GlobalSizingPolicy::projectFlowBalance(const GlobalSizingConfig& params)
-{
-  // Collect all vertices and sort by level (descending) so we visit endpoints
-  // before their predecessors.
-  std::vector<sta::Vertex*> vertices;
-  {
-    sta::VertexIterator vit(graph_);
-    while (vit.hasNext()) {
-      vertices.push_back(vit.next());
-    }
-  }
-  std::ranges::sort(vertices, [](const sta::Vertex* a, const sta::Vertex* b) {
-    return a->level() > b->level();
-  });
-
-  int rescaled = 0;
-  int zero_sum_fallback = 0;
-  for (sta::Vertex* v : vertices) {
-    // Target flow into v
-    float target = 0.0f;
-    auto ep_it = endpoint_index_.find(v);
-    const bool is_endpoint = ep_it != endpoint_index_.end();
-    if (is_endpoint) {
-      target = mu_[ep_it->second];
-    } else {
-      sta::VertexOutEdgeIterator oeit(v, graph_);
-      while (oeit.hasNext()) {
-        sta::Edge* e = oeit.next();
-        if (!isDataArc(e)) {
-          continue;
-        }
-        // lambda_ is sized to the edge-id space captured in allocate().
-        // A sweep can replace cells and the subsequent
-        // updateParasitics()/findRequireds() rebuild arcs, minting edge ids
-        // beyond that space, so an id may now be >= lambda_.size(). Such arcs
-        // carry no multiplier; skip them, matching the guard in
-        // updateMultipliers().
-        const sta::EdgeId id = graph_->id(e);
-        if (static_cast<size_t>(id) >= lambda_.size()) {
-          continue;
-        }
-        target += lambda_[id];
-      }
-    }
-
-    // Current flow summed over in-data-edges
-    float in_sum = 0.0f;
-    int in_count = 0;
-    {
-      sta::VertexInEdgeIterator ieit(v, graph_);
-      while (ieit.hasNext()) {
-        sta::Edge* e = ieit.next();
-        if (!isDataArc(e)) {
-          continue;
-        }
-        const sta::EdgeId id = graph_->id(e);
-        if (static_cast<size_t>(id) >= lambda_.size()) {
-          continue;
-        }
-        in_sum += lambda_[id];
-        ++in_count;
-      }
-    }
-
-    if (in_count == 0) {
-      continue;
-    }
-
-    if (in_sum > 0.0f) {
-      const float scale = target / in_sum;
-      sta::VertexInEdgeIterator ieit(v, graph_);
-      while (ieit.hasNext()) {
-        sta::Edge* e = ieit.next();
-        if (!isDataArc(e)) {
-          continue;
-        }
-        const sta::EdgeId id = graph_->id(e);
-        if (static_cast<size_t>(id) >= lambda_.size()) {
-          continue;
-        }
-        lambda_[id] = std::max(lambda_[id] * scale, params.lambda_floor);
-      }
-      ++rescaled;
-    } else if (target > 0.0f) {
-      const float share = target / static_cast<float>(in_count);
-      sta::VertexInEdgeIterator ieit(v, graph_);
-      while (ieit.hasNext()) {
-        sta::Edge* e = ieit.next();
-        if (!isDataArc(e)) {
-          continue;
-        }
-        const sta::EdgeId id = graph_->id(e);
-        if (static_cast<size_t>(id) >= lambda_.size()) {
-          continue;
-        }
-        lambda_[id] = std::max(share, params.lambda_floor);
-      }
-      ++zero_sum_fallback;
-    }
-  }
-
-  debugPrint(logger_,
-             RSZ,
-             "global_sizing",
-             2,
-             "LR project: {} vertices rescaled ({} zero-sum fallbacks)",
-             rescaled,
-             zero_sum_fallback);
-}
 
 GlobalSizingPolicy::DesignSnap GlobalSizingPolicy::computeDesignSnap() const
 {
@@ -590,343 +75,159 @@ GlobalSizingPolicy::DesignSnap GlobalSizingPolicy::computeDesignSnap() const
   return s;
 }
 
-void GlobalSizingPolicy::computeSlackBudgets()
+void GlobalSizingPolicy::logEffectiveConfig() const
 {
-  // Per-vertex downsize budget = max(0, slack(v) - margin) / depth(v), where
-  // depth(v) is the gate count on the longest path through v. Distributing by
-  // depth bounds the per-path budget sum by the path slack; using v's own
-  // (worst-path) slack keeps each gate safe on all its paths. Recomputed each
-  // sweep from the live slacks.
-  std::vector<sta::Vertex*> vertices;
-  size_t max_id = 0;
-  {
-    sta::VertexIterator vit(graph_);
-    while (vit.hasNext()) {
-      sta::Vertex* v = vit.next();
-      vertices.push_back(v);
-      max_id = std::max(max_id, static_cast<size_t>(graph_->id(v)));
-    }
-  }
-  const size_t n = max_id + 1;
-  std::ranges::sort(vertices, [](const sta::Vertex* a, const sta::Vertex* b) {
-    return a->level() < b->level();
-  });
-
-  // A gate-internal (cell) arc has both pins on the same leaf instance; only
-  // these add a gate-delay term to a path, so only these increment the depth.
-  auto is_gate_arc = [this](sta::Edge* e) {
-    const sta::Instance* fi = network_->instance(e->from(graph_)->pin());
-    const sta::Instance* ti = network_->instance(e->to(graph_)->pin());
-    return fi != nullptr && fi == ti;
-  };
-
-  // Forward pass (increasing level): Gates from a source up to and including v
-  std::vector<int> fwd(n, 0);
-  for (sta::Vertex* v : vertices) {
-    int best = 0;
-    sta::VertexInEdgeIterator ieit(v, graph_);
-    while (ieit.hasNext()) {
-      sta::Edge* e = ieit.next();
-      if (!isDataArc(e)) {
-        continue;
-      }
-      const sta::VertexId uid = graph_->id(e->from(graph_));
-      best = std::max(best, fwd[uid] + (is_gate_arc(e) ? 1 : 0));
-    }
-    fwd[graph_->id(v)] = best;
-  }
-
-  // Backward pass (decreasing level): Gates from v (exclusive) to a sink
-  std::vector<int> bwd(n, 0);
-  for (sta::Vertex* v : std::views::reverse(vertices)) {
-    int best = 0;
-    sta::VertexOutEdgeIterator oeit(v, graph_);
-    while (oeit.hasNext()) {
-      sta::Edge* e = oeit.next();
-      if (!isDataArc(e)) {
-        continue;
-      }
-      const sta::VertexId wid = graph_->id(e->to(graph_));
-      best = std::max(best, bwd[wid] + (is_gate_arc(e) ? 1 : 0));
-    }
-    bwd[graph_->id(v)] = best;
-  }
-
-  const float margin = gs_config_.setup_slack_margin;
-  const float kSlackSentinel = 1e6f;
-  vertex_budget_.assign(n, 0.0f);
-  for (sta::Vertex* v : vertices) {
-    const sta::VertexId vid = graph_->id(v);
-    const int depth = std::max(1, fwd[vid] + bwd[vid]);
-    const float slack = sta::delayAsFloat(sta_->slack(v, policy_max_));
-    // Unconstrained vertices (no real required time) report a sentinel slack;
-    // leave them effectively unbudgeted so genuinely free gates can downsize.
-    vertex_budget_[vid]
-        = (slack >= kSlackSentinel)
-              ? kSlackSentinel
-              : std::max(0.0f, slack - margin) / static_cast<float>(depth);
-  }
-  debugPrint(logger_,
-             RSZ,
-             "global_sizing",
-             2,
-             "LR budgets: {} vertices (max id {}), margin={}",
-             vertices.size(),
-             max_id,
-             sta::delayAsString(margin, 3, sta_));
-}
-
-std::vector<LRSubproblem::GateSnapshot> GlobalSizingPolicy::buildSnapshots()
-{
-  // Phase A (main thread, delays valid): freeze each evaluable gate's
-  // timing/DRC state. snapshot() also reads loadCap/slew and warms the lazy
-  // getSwappableCells / cellLeakage / net-driver caches, so the subsequent
-  // parallel phase touches none of them.
-  const int lambda_size = static_cast<int>(lambda_.size());
-  const int budget_size = static_cast<int>(vertex_budget_.size());
-  std::vector<LRSubproblem::GateSnapshot> snapshots;
-  std::unique_ptr<sta::LeafInstanceIterator> iit(
-      network_->leafInstanceIterator());
-  while (iit->hasNext()) {
-    sta::Instance* inst = iit->next();
-    LRSubproblem::GateSnapshot snap;
-    if (subproblem_->snapshot(inst,
-                              lambda_.data(),
-                              lambda_size,
-                              vertex_budget_.data(),
-                              budget_size,
-                              gs_config_.include_clock_network,
-                              snap)) {
-      snapshots.push_back(std::move(snap));
-    }
-  }
-  return snapshots;
-}
-
-GlobalSizingPolicy::SweepStats GlobalSizingPolicy::applyDecisions(
-    const std::vector<LRSubproblem::GateDecision>& decisions,
-    const int visited)
-{
-  // Phase C (main thread, serial): apply accepted replacements in the snapshot
-  // vector order so the result is independent of worker scheduling. Pure apply
-  // loop - no slack/slew/arrival query may run here, or the single batched
-  // timing update in iterate() would fragment into many.
+  // §3.4 run header: the authoritative echo of the effective config (preset +
+  // every axis + every scalar), always on, and the per-run record the ablation
+  // harness parses.
   //
-  // Hysteresis on cost improvement before we commit a move:
-  // - Upsize moves: 2% - filter LR-cost noise that would otherwise churn
-  //   the design without a meaningful timing win.
-  // - Downsize moves: 0% - on a non-critical gate λ is at the floor and
-  //   the cost is dominated by leakage; any drop is a real leakage gain.
-  const float upsize_accept_tol = 0.02f;
-  const float downsize_accept_tol = 0.0f;
+  // It COVERS the same axes as report_global_sizing_config but is not a mirror
+  // of it, and the difference is load-bearing: that proc reads the dbProperties
+  // and reports what the user SET (printing `undefined` for a knob with no
+  // property), while this reports the EFFECTIVE value after a preset bundle and
+  // every override. On a preset-less run they therefore say the same thing in
+  // two words - the proc's `-preset:  undefined` and this line's
+  // `preset=unset`.
+  //
+  // `preset=` reports the preset that was REQUESTED, not the struct's default
+  // value: without a `-preset`, no bundle was applied and the axes below are
+  // struct defaults that merely coincide with rsz_baseline's. `unset` (rather
+  // than `none`) because the collector's own per-run line already spells
+  // "the engine never ran" as `gs=none` (ORFS genSummary.py), and two
+  // different facts must not share a word in the harness record.
+  const char* preset_name
+      = gs_config_.preset_explicit ? toString(gs_config_.preset) : "unset";
+  logger_->info(
+      RSZ,
+      417,
+      "GLOBAL_SIZING config: preset={} init={} init_seed={} seed={} update={} "
+      "mu_policy={} mu_autopair={} projection={} sweep={} gs_refresh={} "
+      "traversal={} guard={} move_set={} fast_olr_start={} "
+      "output_drc_veto={} "
+      "timing_scale={} term={} best={} | max_iter={} "
+      "beta={:.3g} mu_exp={:.3g} lambda_floor={:.3g} timing_bias={:.3g} "
+      "budget_safety={:.3g} upsize_hyst={:.3g} clock_net={} margin={:.3g} "
+      "| lambda_init={:.3g} "
+      "seed_exp={:.3g} est_iters={} update_c={:.3g} "
+      "flach_k={:.3g}/{:.3g}/{:.3g} sharma_r={:.3g} sharma_k={:.3g} "
+      "reimann_rho={:.3g} reimann_k={:.3g} reimann_ksched={:.3g}/{:.3g}/{:.3g} "
+      "reimann_setpoint={} livramento_alpha0={:.3g} "
+      "| cost_upstream_load={} cost_fanout_slew={} cost_global_phi={} "
+      "cost_delta_delay={} | gamma_local_slack={:.3g} "
+      "stagnation={}/{}/{:.3g}/{} near_met_gate={:.3g} "
+      "chinnery={:.3g}/{:.3g}/{:.3g}/{:.3g}/{}/{:.3g} "
+      "best_tns_frac={:.3g}",
+      preset_name,
+      toString(gs_config_.init_mode),
+      gs_config_.init_seed,
+      toString(gs_config_.lambda_seed),
+      toString(gs_config_.lambda_update),
+      toString(gs_config_.mu_policy),
+      gs_config_.mu_auto_paired,
+      toString(gs_config_.kkt_projection),
+      toString(gs_config_.sweep_engine),
+      toString(gs_config_.gs_refresh),
+      toString(gs_config_.traversal),
+      toString(gs_config_.downsize_guard),
+      toString(gs_config_.move_set),
+      gs_config_.fast_olr_start_iter,
+      toString(gs_config_.output_drc_veto),
+      toString(gs_config_.timing_scale),
+      toString(gs_config_.termination),
+      toString(gs_config_.best_tracker),
+      gs_config_.max_iterations,
+      gs_config_.beta,
+      gs_config_.mu_exponent,
+      gs_config_.lambda_floor,
+      gs_config_.timing_bias,
+      gs_config_.budget_safety_factor,
+      gs_config_.upsize_hysteresis,
+      gs_config_.include_clock_network,
+      gs_config_.setup_slack_margin,
+      gs_config_.lambda_init_value,
+      gs_config_.lambda_seed_exponent,
+      gs_config_.est_loop_iters,
+      gs_config_.lambda_update_c,
+      gs_config_.flach_k_init,
+      gs_config_.flach_k_tns_small,
+      gs_config_.flach_k_final,
+      gs_config_.sharma_r,
+      gs_config_.sharma_k,
+      gs_config_.reimann_rho_init,
+      gs_config_.reimann_k,
+      gs_config_.reimann_k_est,
+      gs_config_.reimann_k_lo,
+      gs_config_.reimann_k_hi,
+      toString(gs_config_.reimann_setpoint),
+      gs_config_.livramento_alpha0,
+      gs_config_.cost_upstream_load,
+      gs_config_.cost_fanout_slew,
+      gs_config_.cost_global_phi,
+      gs_config_.cost_delta_delay,
+      gs_config_.gamma_local_slack,
+      gs_config_.stagnation_window,
+      gs_config_.stagnation_count,
+      gs_config_.stagnation_improve_frac,
+      gs_config_.stagnation_require_tns,
+      gs_config_.near_met_gate_frac,
+      gs_config_.term_tns_target_frac,
+      gs_config_.term_wns_target_frac,
+      gs_config_.term_tns_improve_frac,
+      gs_config_.term_power_improve_frac,
+      gs_config_.term_improve_window,
+      gs_config_.term_wall_limit_s,
+      gs_config_.best_tns_target_frac);
+}
 
-  int moves = 0;
-  int evaluated = 0;
-  int downsizes = 0;
-  int upsizes = 0;
-
-  for (const LRSubproblem::GateDecision& r : decisions) {
-    if (r.best_cell == nullptr) {
-      continue;
-    }
-    ++evaluated;
-    const float tol
-        = r.best_is_downsize ? downsize_accept_tol : upsize_accept_tol;
-    if (r.best_cost < r.baseline_cost * (1.0f - tol)) {
-      sta::LibertyCell* prev = network_->libertyCell(r.inst);
-      if (subproblem_->applyReplacement(r.inst, r.best_cell)) {
-        ++moves;
-        const float rel_gain
-            = r.baseline_cost > 0.0f
-                  ? (r.baseline_cost - r.best_cost) / r.baseline_cost
-                  : 0.0f;
-        if (r.best_is_downsize) {
-          ++downsizes;
-        } else {
-          ++upsizes;
-        }
-        debugPrint(logger_,
-                   RSZ,
-                   "global_sizing",
-                   5,
-                   "{} {}: {} -> {} (cost {:.3g} -> {:.3g}, gain {:.2f}%)",
-                   r.best_is_downsize ? "DOWN" : "UP  ",
-                   network_->pathName(r.inst),
-                   prev != nullptr ? prev->name() : "?",
-                   r.best_cell->name(),
-                   r.baseline_cost,
-                   r.best_cost,
-                   100.0f * rel_gain);
-      }
-    }
+void GlobalSizingPolicy::runEstimationLoop(const float timing_weight)
+{
+  const int est_iters = std::max(0, gs_config_.est_loop_iters);
+  if (est_iters == 0) {
+    return;
   }
-
+  // Reimann Alg. 2 loop 1. setEstimationPhase pins the reimann k-schedule to
+  // k_est; a no-op for every other updater.
+  updater_->setEstimationPhase(true);
+  for (int i = 0; i < est_iters; ++i) {
+    resizer_.journalBegin();
+    // Commit one sweep so the updater sees the resulting timing, update lambda
+    // from that would-be picture, then roll the sweep back through the journal
+    // so only lambda carries forward. The rollback is engine-agnostic (any
+    // SweepEngine's commits are journaled), which M4's Gauss-Seidel engine
+    // reuses. journalRestore refreshes parasitics + required times itself, so
+    // the next iteration (and the main loop) start from the initial timing.
+    prepareCostTerms();
+    sweep_engine_->sweep(state_, timing_weight);
+    estimate_parasitics_->updateParasitics();
+    sta_->findRequireds();
+    updater_->update(state_, i + 1);
+    // Estimation-loop projections are never the run's first (the main loop's
+    // post-seed projection is); the endpoint-pressure policies derive μ there,
+    // not here.
+    projection_->project(state_, /*first_projection=*/false);
+    resizer_.journalRestore();
+  }
+  updater_->setEstimationPhase(false);
   debugPrint(logger_,
              RSZ,
              "global_sizing",
              2,
-             "LR sweep: {} instances visited, "
-             "{} with an improving candidate, "
-             "{} replacements applied ({} upsize, {} downsize)",
-             visited,
-             evaluated,
-             moves,
-             upsizes,
-             downsizes);
-
-  return {.moves = moves, .upsizes = upsizes, .downsizes = downsizes};
+             "LR estimation loop: {} dry-run sweeps, lambda warm-started",
+             est_iters);
 }
 
-GlobalSizingPolicy::SweepStats GlobalSizingPolicy::singleSweep(
-    const float timing_weight)
+void GlobalSizingPolicy::prepareCostTerms()
 {
-  // Phase A: Distribute the slack into per-vertex budgets, then freeze
-  // per-gate state (which reads those budgets).
-  computeSlackBudgets();
-  std::vector<LRSubproblem::GateSnapshot> snapshots = buildSnapshots();
-
-  // Phase B: Score every snapshot independently. Each worker uses its own
-  // ArcDelayCalc copy (arc_delay_calc_ is single-threaded shared state); the
-  // copy is cached per worker thread and refreshed if the source changes. With
-  // a zero-worker pool, this runs inline on the calling thread.
-  const float safety = gs_config_.budget_safety_factor;
-  sta::ArcDelayCalc* const src = sta_->arcDelayCalc();
-  const std::vector<LRSubproblem::GateDecision> decisions
-      = thread_pool_->parallelMap(
-          snapshots,
-          [this, timing_weight, safety, src](
-              const LRSubproblem::GateSnapshot& snap) {
-            static thread_local sta::ArcDelayCalc* cached_src = nullptr;
-            static thread_local std::unique_ptr<sta::ArcDelayCalc> adc;
-            if (adc == nullptr || cached_src != src) {
-              adc.reset(src->copy());
-              cached_src = src;
-            }
-            return subproblem_->evaluateSnapshot(
-                snap, timing_weight, safety, adc.get());
-          });
-
-  // Phase C: Apply accepted moves serially.
-  return applyDecisions(decisions, static_cast<int>(snapshots.size()));
-}
-
-float GlobalSizingPolicy::computeAutoTimingWeight(
-    const GlobalSizingConfig& params) const
-{
-  std::vector<float> leakages;
-  std::vector<float> timings;
-  const sta::Scene* scene = sta_->cmdScene();
-  const int lambda_size = static_cast<int>(lambda_.size());
-
-  std::unique_ptr<sta::LeafInstanceIterator> iit(
-      network_->leafInstanceIterator());
-  while (iit->hasNext()) {
-    sta::Instance* inst = iit->next();
-    if (resizer_.dontTouch(inst)) {
-      continue;
-    }
-    sta::LibertyCell* cell = network_->libertyCell(inst);
-    if (cell == nullptr) {
-      continue;
-    }
-
-    leakages.push_back(subproblem_->leakageOrArea(cell));
-
-    // Per-gate timing pressure used to anchor the leakage<->timing scale
-    float gate_t = 0.0f;
-    bool has_pressure = false;
-    std::unique_ptr<sta::InstancePinIterator> pit(network_->pinIterator(inst));
-    while (pit->hasNext()) {
-      sta::Pin* pin = pit->next();
-      const sta::PortDirection* dir = network_->direction(pin);
-      if (!dir->isOutput()) {
-        continue;
-      }
-      sta::Vertex* v = graph_->pinDrvrVertex(pin);
-      if (v == nullptr) {
-        continue;
-      }
-      float lam_sum = 0.0f;
-      sta::VertexInEdgeIterator ieit(v, graph_);
-      while (ieit.hasNext()) {
-        sta::Edge* e = ieit.next();
-        if (!isDataArc(e)) {
-          continue;
-        }
-        const sta::Pin* from_pin = e->from(graph_)->pin();
-        if (network_->instance(from_pin) != inst) {
-          continue;
-        }
-        const sta::EdgeId id = graph_->id(e);
-        if (std::cmp_greater_equal(id, lambda_size)) {
-          continue;
-        }
-        lam_sum += lambda_[id];
-      }
-      if (lam_sum <= 4.0f * params.lambda_floor) {
-        continue;
-      }
-      sta::LibertyPort* port = network_->libertyPort(pin);
-      if (port == nullptr) {
-        continue;
-      }
-      const float load
-          = sta_->graphDelayCalc()->loadCap(pin, scene, policy_max_);
-      const float d = sta::delayAsFloat(
-          resizer_.gateDelay(port, load, scene, policy_max_));
-      gate_t += lam_sum * d;
-      has_pressure = true;
-    }
-    if (has_pressure) {
-      timings.push_back(gate_t);
-    }
+  // Both passes read the current (pre-sweep) timing on the main thread and
+  // freeze per-edge vectors the workers consume; guarded so the rsz_baseline
+  // path does no extra work. computePhiSensitivities uses the current lambda,
+  // so it runs after the per-iteration lambda update/projection.
+  if (gs_config_.cost_global_phi) {
+    computePhiSensitivities(state_);
   }
-
-  float l_med = 0.0f;
-  float t_med = 0.0f;
-  bool degenerate = leakages.empty() || timings.empty();
-  if (!degenerate) {
-    const auto l_mid = leakages.size() / 2;
-    std::nth_element(
-        leakages.begin(), leakages.begin() + l_mid, leakages.end());
-    l_med = leakages[l_mid];
-
-    const auto t_mid = timings.size() / 2;
-    std::nth_element(timings.begin(), timings.begin() + t_mid, timings.end());
-    t_med = timings[t_mid];
-
-    if (l_med <= 0.0f || t_med <= 0.0f) {
-      degenerate = true;
-    }
+  if (gs_config_.cost_delta_delay) {
+    captureReferenceDelays(state_);
   }
-
-  if (degenerate) {
-    debugPrint(logger_,
-               RSZ,
-               "global_sizing",
-               1,
-               "LR auto timing_weight: degenerate "
-               "(leakages={}, timings={}, "
-               "L_med={:.3g}, T_med={:.3g}); using 1.0",
-               leakages.size(),
-               timings.size(),
-               l_med,
-               t_med);
-    return 1.0f;
-  }
-
-  const float tw = params.timing_bias * l_med / t_med;
-  debugPrint(logger_,
-             RSZ,
-             "global_sizing",
-             1,
-             "LR auto timing_weight: bias={:.3g} "
-             "L_med={:.3g} T_med={:.3g} -> tw={:.3g}",
-             params.timing_bias,
-             l_med,
-             t_med,
-             tw);
-  return tw;
 }
 
 bool GlobalSizingPolicy::start()
@@ -935,14 +236,43 @@ bool GlobalSizingPolicy::start()
     return false;
   }
   gs_config_ = resizer_.globalSizingConfig();
+  // Resolve the lambda/mu pairing on this run's frozen copy BEFORE validating,
+  // so validate()'s own cross-axis rules (and RSZ-0417 below) see the effective
+  // policy rather than the one the bundle happened to leave behind.
+  gs_config_.resolveLambdaMuPairing(logger_);
+  if (!gs_config_.validate(logger_)) {
+    return false;
+  }
   db_network_ = resizer_.dbNetwork();
-  subproblem_ = std::make_unique<LRSubproblem>(&resizer_);
+
+  // Read-only handles shared with every strategy (base start() has set sta_ /
+  // network_ / graph_). dcalc_ap is filled by iterate() before the seed.
+  state_.sta = sta_;
+  state_.network = network_;
+  state_.db_network = db_network_;
+  state_.graph = graph_;
+  state_.resizer = &resizer_;
+  state_.logger = logger_;
+  state_.config = &gs_config_;
+  state_.max = policy_max_;
+
   // Phase B fans the per-gate evaluations across the OpenROAD thread budget
   // (threadCount()-1 workers; a zero-worker pool runs inline). Each worker
   // reads only the frozen snapshots, read-only Liberty/SDC, and its own
   // ArcDelayCalc copy, so results are independent of worker count and the
   // apply order stays the snapshot vector order.
   thread_pool_ = makeWorkerThreadPool();
+
+  // Construct the per-axis strategies once from the frozen config.
+  init_pass_ = makeInitPass(gs_config_);
+  seeder_ = makeLambdaSeeder(gs_config_);
+  updater_ = makeLambdaUpdater(gs_config_);
+  projection_ = makeFlowProjection(gs_config_);
+  sweep_engine_ = makeSweepEngine(gs_config_, &resizer_, thread_pool_.get());
+  best_tracker_ = makeBestTracker(gs_config_);
+  termination_ = makeTermination(gs_config_);
+
+  logEffectiveConfig();
   return true;
 }
 
@@ -969,174 +299,294 @@ void GlobalSizingPolicy::iterate()
              sta::delayAsString(wns_pre, 3, sta_),
              sta::delayAsString(tns_pre, 1, sta_));
 
-  // Outer journal: Wraps presize + LR. Final accept compares post-LR WNS to
-  // wns_pre so a presize that regressed WNS but was rescued by LR (or was net
-  // worse and LR could not recover) is committed or rolled back as a single
-  // decision. Inner LR-loop checkpoints nest under this outer ECO.
+  // The solution handed to this phase, which the reimann_score tracker measures
+  // every iterate against (Eq. 6's deltas are relative to the input solution).
+  state_.metrics_init
+      = IterMetrics{.wns = wns_pre,
+                    .tns = tns_pre,
+                    .leakage = static_cast<float>(pre.total_leakage),
+                    .area = static_cast<float>(pre.total_area)};
+
+  // Outer journal: wraps the init pass + LR so the inner LR-loop checkpoints
+  // nest under one phase-level ECO (committed at the end; see the journalEnd
+  // below).
   resizer_.journalBegin();
 
-  applyPresize(gs_config_.presize_mode, gs_config_.include_clock_network);
+  init_pass_->run(state_);
 
-  allocate();
-  seedMultipliers(gs_config_);
-  projectFlowBalance(gs_config_);
+  // STA preamble the seed / sweep / DRC rely on, plus the analysis point for
+  // arc-delay reads. Then size the multiplier vectors from the current graph.
+  sta_->findRequireds();
+  sta_->checkCapacitancesPreamble(sta_->scenes());
+  sta_->checkSlewsPreamble();
+  sta_->checkFanoutPreamble();
+  const sta::Scene* scene = sta_->cmdScene();
+  state_.dcalc_ap = scene->dcalcAnalysisPtIndex(policy_max_);
+  state_.allocate();
+  // Snapshot the pre-LR timing (clock period, worst slack, per-vertex slack)
+  // for updaters that reference the initial solution (reimann_dwns).
+  state_.captureInitialTiming();
 
-  subproblem_->init();
+  seeder_->seed(state_);
+  // The run's first projection: endpoint_ratio / endpoint_additive derive their
+  // initial μ from the seeded λ here (μ_0 ∝ the seed magnitude).
+  projection_->project(state_, /*first_projection=*/true);
 
-  const float timing_weight = computeAutoTimingWeight(gs_config_);
+  sweep_engine_->init(state_);
 
-  const int max_iter = (gs_config_.max_iterations > 0)
-                           ? gs_config_.max_iterations
-                           : GlobalSizingConfig{}.max_iterations;
+  // A1: the frozen design/library anchor (TimingScale.hh). Every timing_scale
+  // option freezes it here, at iteration 0, off the seeded+projected field.
+  const float timing_weight_base
+      = sweep_engine_->computeTimingWeightBase(state_);
+  // Livramento's α rides on top of that base and is the one per-iteration part
+  // of the scale; livramento_alpha0 seeds it (Alg. 1 L6). Inert under every
+  // other option, which never divide by it.
+  float livramento_alpha = gs_config_.livramento_alpha0;
+  // A-axis diagnostic (§2.2-5): how many times α was rescheduled and whether
+  // its accumulator floor ever clamped. Reported once at loop exit (RSZ-0444).
+  int livramento_reschedules = 0;
+  bool livramento_alpha_floor_bound = false;
+
+  if (gs_config_.lambda_seed
+      == GlobalSizingConfig::LambdaSeed::kEstimationLoop) {
+    runEstimationLoop(timing_weight_base);
+  }
+
+  const int max_iter = termination_->maxIterations(state_);
   const float wns_eps = 1e-12f;
-  GlobalSizingConfig iter_params = gs_config_;
 
-  // LR oscillation baseline = WNS at the moment the inner LR journal opens
-  // (post-presize). The inner loop checkpoints whenever it matches or beats
-  // this; the outer decision below judges whether the final state beat wns_pre.
-  float best_wns = sta::delayAsFloat(sta_->worstSlack(policy_max_));
+  const bool trace_level_1 = logger_->debugCheck(RSZ, "global_sizing", 1);
 
   int total_committed = 0;
   int total_attempted = 0;
   int total_upsizes = 0;
   int total_downsizes = 0;
+  int total_cap_reverts = 0;
+  bool cap_recheck_bound_hit = false;
   int accepted_iters = 0;
   int rejected_iters = 0;
-  int consec_zero = 0;
-  int consec_reject = 0;
-  resizer_.journalBegin();
+  // H2 owns the pass-level journal: whether a sweep survives is a
+  // best-solution decision, and the options answer it incompatibly (see
+  // BestTracker). rsz_baseline's wns_pass_reject checkpoints on WNS
+  // non-regression and drops the drift at endLoop; every other option keeps
+  // all passes and selects by cell assignment in restore().
+  best_tracker_->beginLoop(state_);
   for (int iter = 0; iter < max_iter; ++iter) {
-    // Global sizing only drives WNS upward; once it meets the setup margin
-    // there is no timing left to recover and further sweeps would only spend
-    // area and leakage.
-    const float wns_now = sta::delayAsFloat(sta_->worstSlack(policy_max_));
-    if (sta::fuzzyGreaterEqual(wns_now, gs_config_.setup_slack_margin)) {
-      debugPrint(logger_,
-                 RSZ,
-                 "global_sizing",
-                 1,
-                 "LR stop: WNS {} meets setup margin {}",
-                 sta::delayAsString(wns_now, 3, sta_),
-                 sta::delayAsString(gs_config_.setup_slack_margin, 3, sta_));
+    // Publish the iteration index for the strategies that are not handed one
+    // (the sweep engines and, through them, the F4 move set).
+    state_.iter = iter;
+    if (termination_->stopBeforeSweep(state_, iter)) {
       break;
     }
 
+    // C3 item 3: extend λ to the live edge-id space before the updater and
+    // projection read it, so arcs the previous sweep's rebuild minted past the
+    // allocate()-sized space (or the estimation loop's churn minted before
+    // iteration 0) get a neutral slot and are priced from here on, instead of
+    // being silently skipped and cascading a λ blackout at any fully-re-minted
+    // vertex (tennakoon audit §5.4). Counted at debug level 2.
+    state_.growToLiveEdges();
+
     if (iter > 0) {
-      updateMultipliers(iter_params);
-      projectFlowBalance(iter_params);
+      updater_->update(state_, iter);
+      projection_->project(state_, /*first_projection=*/false);
     }
 
     const float wns0 = sta::delayAsFloat(sta_->worstSlack(policy_max_));
 
-    const SweepStats sweep = singleSweep(timing_weight);
-    const int iter_moves = sweep.moves;
+    // C2 near-met phase latch (driver-owned; strategies read state_.near_met
+    // only). Updated from the fresh pre-sweep WNS so this iteration's veto and
+    // this iteration's stagnation check both see the current phase. Permanent
+    // once set; ungated presets (near_met_gate_frac < 0) latch it here at
+    // iteration 0. See nearMetLatched / the sharma audit §2 items 3/6.
+    state_.near_met = nearMetLatched(
+        state_.near_met, gs_config_.near_met_gate_frac, state_.T, wns0);
+
+    // A1/livramento_alpha: Alg. 1's order is load-bearing - STA (L8), then the
+    // α reschedule (L9), then the LRS (L10) consumes it; only afterwards the λ
+    // update (L11-16) and the projection (L17). wns0 is that fresh STA (the λ
+    // update above moves multipliers, not timing), so rescheduling here and
+    // sweeping below is the paper's sequence. Under every other option the
+    // weight is the frozen base and this is a no-op.
+    float timing_weight = timing_weight_base;
+    if (gs_config_.timing_scale
+        == GlobalSizingConfig::TimingScale::kLivramentoAlpha) {
+      livramento_alpha = rescheduleLivramentoAlpha(
+          livramento_alpha, state_.T, wns0, &livramento_alpha_floor_bound);
+      ++livramento_reschedules;
+      // 1/α: Livramento's α weights the POWER term (Eq. 1 / reduced Lagrangian
+      // Eq. 7 / Alg. 2 L10), and our objective normalizes leakage to 1.
+      // Unguarded by design: rescheduleLivramentoAlpha floors its result, so α
+      // is always positive and base/α stays finite.
+      timing_weight = timing_weight_base / livramento_alpha;
+      debugPrint(
+          logger_,
+          RSZ,
+          "global_sizing",
+          2,
+          "LR livramento alpha: iter={} WNS={} alpha={:.3g} -> tw={:.3g}",
+          iter,
+          sta::delayAsString(wns0, 3, sta_),
+          livramento_alpha,
+          timing_weight);
+    }
+
+    prepareCostTerms();
+    const SweepEngine::Stats sweep
+        = sweep_engine_->sweep(state_, timing_weight);
+    // What the sweep KEPT: its commits less the moves its own post-sweep
+    // max-cap re-check undid (CapRecheck.hh). The raw tallies stay attempt
+    // counts.
+    const int iter_moves = sweep.moves - sweep.cap_reverts;
+    total_cap_reverts += sweep.cap_reverts;
+    cap_recheck_bound_hit |= sweep.cap_recheck_bound_hit;
     estimate_parasitics_->updateParasitics();
     sta_->findRequireds();
     const float wns1 = sta::delayAsFloat(sta_->worstSlack(policy_max_));
 
     const float wns_delta = wns1 - wns0;
-    const bool no_benefit = (iter_moves == 0);
-    // Small regressions are deliberately allowed
-    const bool reject = sta::fuzzyLess(wns_delta, -wns_eps);
+    // "This sweep found nothing to do", which is what the H1 termination rules
+    // mean by it - deliberately the RAW commit count, not the kept one. A sweep
+    // whose moves the cap re-check all undid did find improving candidates, and
+    // the next sweep faces a different frozen picture; reading those as
+    // no-benefit passes would let the cap channel drive fixed_iters'
+    // consecutive-zero exit, moving the termination axis as a side effect of an
+    // electrical fix.
+    const bool no_benefit = (sweep.moves == 0);
+    // Measurement, not a decision: "this sweep's WNS came out worse than the
+    // pre-sweep WNS". Small regressions are deliberately allowed. Each strategy
+    // decides for itself what to do with it - the fixed_iters termination
+    // counts consecutive ones, norm_subgradient halves its step on one, and the
+    // wns_pass_reject tracker rolls back on one. Keeping the measurement here
+    // and the responses in the strategies is what keeps those three axes
+    // independent.
+    const bool wns_regressed = sta::fuzzyLess(wns_delta, -wns_eps);
 
     total_attempted += sweep.moves;
     total_upsizes += sweep.upsizes;
     total_downsizes += sweep.downsizes;
 
-    if (reject) {
-      ++consec_reject;
+    // The updater's private reaction (alpha halving under norm_subgradient; a
+    // no-op for every paper updater).
+    if (wns_regressed) {
+      updater_->onPassRejected();
+    }
+
+    // The H2 tracker's pass policy, which owns the journal checkpoint. Its
+    // verdict - not the raw measurement - is what "accepted" means below, so
+    // the counters and the trace field report what actually happened to the
+    // pass: under a tracker that keeps every pass, nothing is ever rejected.
+    const bool pass_rejected
+        = best_tracker_->considerPass(state_, wns_regressed);
+    if (pass_rejected) {
       ++rejected_iters;
-      iter_params.beta *= 0.5f;
     } else {
       total_committed += iter_moves;
       ++accepted_iters;
-      consec_reject = 0;
     }
 
-    // Best-so-far: Keep track of the best WNS so far but don't restore a sweep
-    // that worsens WNS just yet to allow oscillation.
-    const float current_wns = sta::delayAsFloat(sta_->worstSlack(policy_max_));
-    if (!reject && sta::fuzzyGreaterEqual(current_wns, best_wns)
-        && !resizer_.overMaxArea()) {
-      resizer_.journalEnd();  // checkpoint
-      resizer_.journalBegin();
-      best_wns = current_wns;
-    }
-
-    if (logger_->debugCheck(RSZ, "global_sizing", 1)) {
+    // The iterate's design metrics: the H1 termination rules and the H2 best
+    // tracker decide on them, and the level-1 trace reports them. The design
+    // walk that fills them is O(instances), so it only runs when something
+    // actually reads it - the rsz_baseline bundle (best=wns_pass_reject,
+    // term=fixed_iters, neither of which reads `metrics`) with the trace off
+    // pays nothing, as before M5.
+    const bool want_metrics = trace_level_1 || best_tracker_->needsMetrics()
+                              || termination_->needsMetrics();
+    IterMetrics metrics;
+    if (want_metrics) {
       const DesignSnap iter_snap = computeDesignSnap();
-      const float tns_iter
-          = sta::delayAsFloat(sta_->totalNegativeSlack(policy_max_));
-      debugPrint(
-          logger_,
-          RSZ,
-          "global_sizing",
-          1,
-          "LR iter {}/{} {}: leakage={:.3g} (Δ={:+.3g}, {:+.2f}%) "
-          "area={:.3g} (Δ={:+.3g}, {:+.2f}%) "
-          "WNS={} TNS={}",
-          iter + 1,
-          max_iter,
-          reject ? "REJ" : "ACC",
-          iter_snap.total_leakage,
-          iter_snap.total_leakage - pre.total_leakage,
-          pre.total_leakage > 0.0
-              ? 100.0 * (iter_snap.total_leakage - pre.total_leakage)
-                    / pre.total_leakage
-              : 0.0,
-          iter_snap.total_area,
-          iter_snap.total_area - pre.total_area,
-          pre.total_area > 0.0
-              ? 100.0 * (iter_snap.total_area - pre.total_area) / pre.total_area
-              : 0.0,
-          sta::delayAsString(wns1, 3, sta_),
-          sta::delayAsString(tns_iter, 1, sta_));
+      metrics = IterMetrics{
+          .wns = wns1,
+          .tns = sta::delayAsFloat(sta_->totalNegativeSlack(policy_max_)),
+          .leakage = static_cast<float>(iter_snap.total_leakage),
+          .area = static_cast<float>(iter_snap.total_area)};
     }
+    best_tracker_->consider(state_, iter, metrics);
 
-    if (consec_reject >= 3) {
+    if (trace_level_1) {
+      // λ statistics over the active (data-arc) multipliers only.
+      float lmin = 0.0f;
+      float lmax = 0.0f;
+      float lsum = 0.0f;
+      int lcount = 0;
+      for (const float l : state_.lambda) {
+        if (l > 0.0f) {
+          lmin = (lcount == 0) ? l : std::min(lmin, l);
+          lmax = std::max(lmax, l);
+          lsum += l;
+          ++lcount;
+        }
+      }
+      const float lmean = lcount ? lsum / static_cast<float>(lcount) : 0.0f;
+      // Lagrangian value L(x, λ) at the current iterate - a diagnostic only
+      // (see lagrangianEstimate: it is neither Q(λ) nor a bound in the discrete
+      // setting). No control decision reads it; reported as `lag=`.
+      const LagrangianTerms lag_terms = computeLagrangianTerms(state_);
+      const float lag = lagrangianEstimate(metrics.leakage,
+                                           timing_weight,
+                                           lag_terms.lambda_delay_sum,
+                                           lag_terms.mu_required_sum);
+      // Fixed key=value order → trivially parseable for convergence plots.
       debugPrint(logger_,
                  RSZ,
                  "global_sizing",
                  1,
-                 "LR stop: 3 consecutive rejections");
+                 "iter={} wns={:.6g} tns={:.6g} leakage={:.6g} area={:.6g} "
+                 "up={} down={} accepted={} alpha={:.3g} lmin={:.3g} "
+                 "lmax={:.3g} lmean={:.3g} lsum={:.3g} lag={:.6g}",
+                 iter + 1,
+                 metrics.wns,
+                 metrics.tns,
+                 metrics.leakage,
+                 metrics.area,
+                 sweep.upsizes,
+                 sweep.downsizes,
+                 pass_rejected ? 0 : 1,
+                 updater_->currentStep(),
+                 lmin,
+                 lmax,
+                 lmean,
+                 lsum,
+                 lag);
+    }
+
+    if (termination_->stopAfterSweep(
+            state_, iter, wns_regressed, no_benefit, metrics)) {
       break;
     }
-    if (no_benefit && !reject) {
-      if (++consec_zero >= 2) {
-        debugPrint(logger_,
-                   RSZ,
-                   "global_sizing",
-                   1,
-                   "LR stop: 2 consecutive zero-move passes");
-        break;
-      }
-    } else {
-      consec_zero = 0;
-    }
   }
 
-  // Inner LR journal: Always open at loop exit; undo any drift past the last
-  // checkpoint so the live state matches the best LR achieved (or post-presize
-  // if LR never checkpointed).
-  resizer_.journalRestore();
+  // H1's end-of-loop hook: an option that publishes a run record publishes it
+  // here too, so the record exists on the max_iterations path and not only when
+  // the option's own verdict ended the loop. Every option but the threshold
+  // battery says nothing.
+  termination_->reportRunEnd(state_);
 
-  // Outer journal: Commit if the final state beats the truly-original WNS and
-  // stays within the area budget; otherwise roll back presize + LR entirely.
-  const float wns_after = sta::delayAsFloat(sta_->worstSlack(policy_max_));
-  const bool outer_accept
-      = sta::fuzzyGreaterEqual(wns_after, wns_pre) && !resizer_.overMaxArea();
-  if (outer_accept) {
-    resizer_.journalEnd();
-  } else {
-    debugPrint(logger_,
-               RSZ,
-               "global_sizing",
-               1,
-               "Outer rollback: WNS {} < pre {} (or overMaxArea)",
-               sta::delayAsString(wns_after, 3, sta_),
-               sta::delayAsString(wns_pre, 3, sta_));
-    resizer_.journalRestore();
+  // Close the pass-level journal the tracker opened: wns_pass_reject undoes the
+  // drift past its last checkpoint here; every other option commits the passes.
+  best_tracker_->endLoop(state_);
+
+  // H2: reinstate the best iterate the tracker recorded. This runs after the
+  // pass-level journal is closed, so nothing can roll its replacements back and
+  // the tracker's choice is final. (Note they are not journaled at all: the
+  // tracker's endLoop() left `journal_` null, so `journal=true` in restore() is
+  // inert here. Harmless now that nothing arbitrates the phase result; it was
+  // load-bearing when an end-of-phase accept could revert them.) The
+  // replacements need a parasitics + timing refresh before the post-phase QoR
+  // numbers are read.
+  if (best_tracker_->restore(state_)) {
+    estimate_parasitics_->updateParasitics();
+    sta_->findRequireds();
   }
+
+  // Commit the phase ECO. Deliberately NO end-of-phase WNS accept: power
+  // recovery spends positive slack, so `WNS_after >= WNS_pre` discards
+  // legitimate leakage wins on a met design and no paper has such a rule. If a
+  // do-no-harm floor is ever wanted again it belongs on the H2 axis with the
+  // other selection rules, not in this driver-owned accept. (History:
+  // gs-guard's outer_guard, deleted 2026-07-29; see the plan's "engine fix 2".)
+  resizer_.journalEnd();
 
   const DesignSnap post = computeDesignSnap();
   const float wns_post = sta::delayAsFloat(sta_->worstSlack(policy_max_));
@@ -1148,8 +598,9 @@ void GlobalSizingPolicy::iterate()
   const int total_iters = accepted_iters + rejected_iters;
 
   // Headline: kept moves vs. attempted moves. They diverge when sweeps are
-  // rolled back by the catastrophic-WNS guard, or when the end-of-run best-WNS
-  // restore reverts some drift past the best iter.
+  // rolled back by the wns_pass_reject pass check (H2, the only rule that
+  // rejects a pass), or when its end-of-loop restore reverts drift past the
+  // best iterate.
   logger_->info(RSZ,
                 400,
                 "GLOBAL_SIZING: {} cells replaced (loop); "
@@ -1163,6 +614,41 @@ void GlobalSizingPolicy::iterate()
                 total_attempted,
                 total_upsizes,
                 total_downsizes);
+
+  // A-axis terminal-α record (§2.2-5, the S1 §3.3 diagnostic ask). Only this
+  // option has a live α, so only this option reports one - and it reports BOTH
+  // halves: where the schedule ended up, and whether the accumulator floor ever
+  // clamped on the way. The clamp is what keeps tw = base/α finite on a design
+  // that never closes, so without the flag a terminal α sitting at the floor is
+  // indistinguishable from a schedule that merely converged low, and the
+  // α-runaway question stays an inference. No behaviour change.
+  if (gs_config_.timing_scale
+      == GlobalSizingConfig::TimingScale::kLivramentoAlpha) {
+    logger_->info(RSZ,
+                  444,
+                  "GLOBAL_SIZING timing_scale=livramento_alpha: "
+                  "terminal alpha={:.6g} (alpha0={:.3g}, {} reschedules); "
+                  "alpha_floor_bound={} (floor={:.3g}).",
+                  livramento_alpha,
+                  gs_config_.livramento_alpha0,
+                  livramento_reschedules,
+                  livramento_alpha_floor_bound,
+                  kLivramentoAlphaFloor);
+  }
+
+  // The cap channel, always reported so a run's log says what the electrical
+  // re-check cost it - "0" is a measurement, not a missing line (plan §2.2-1;
+  // max-cap ERC decides essentially every loss tail, SYNTHESIS §3.3). Reverts
+  // are moves the sweep committed and the post-sweep re-check undid because
+  // they pushed a net past its max-cap limit; they are counted in the
+  // "attempted" totals of RSZ-0400 above and not in its kept total.
+  logger_->info(RSZ,
+                443,
+                "GLOBAL_SIZING cap re-check: {} move(s) reverted for creating "
+                "a max-cap violation the sweep's frozen veto could not see; "
+                "pass_bound_hit={}.",
+                total_cap_reverts,
+                cap_recheck_bound_hit);
 
   // QoR before -> after. This is the line that answers "what did it improve
   // and what did it regress" -- read the arrows, not just the deltas.
@@ -1192,9 +678,10 @@ void GlobalSizingPolicy::iterate()
   if (total_committed == 0 && total_attempted > 0) {
     logger_->info(RSZ,
                   412,
-                  "GLOBAL_SIZING: nothing kept -- all {} sweeps tripped the "
-                  "WNS guard and were rolled back; the netlist is unchanged "
-                  "from the start of this phase. "
+                  "GLOBAL_SIZING: nothing kept -- all {} rejected sweeps "
+                  "regressed WNS and were rolled back by the "
+                  "best_tracker=wns_pass_reject pass check; the netlist is "
+                  "unchanged from the start of this phase. "
                   "The {} attempted replacements were tentative only.",
                   rejected_iters,
                   total_attempted);

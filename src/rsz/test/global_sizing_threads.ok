@@ -4,12 +4,14 @@
 [INFO ODB-0131]     Created 3 components and 15 component-terminals.
 [INFO ODB-0132]     Created 2 special nets and 0 connections.
 [INFO ODB-0133]     Created 7 nets and 9 connections.
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
 [INFO RSZ-0400] GLOBAL_SIZING: 3 cells replaced (loop); 4/4 sweeps accepted, 0 rolled back; 3 replacements attempted in total (3 upsize, 0 downsize).
-[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.278 -> -0.157 (0.121); TNS -0.5 -> -0.3 (0.2); leakage 7.89e-08 -> 1.56e-07W (+98.18%); area 3.46e-12 -> 5.32e-12m^2 (+53.85%).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.278 -> -0.157 (0.121); TNS -0.5 -> -0.3 (0.2); leakage 7.89e-08 -> 2.07e-07W (+162.00%); area 3.46e-12 -> 6.38e-12m^2 (+84.62%).
    Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
           | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
 ------------------------------------------------------------------------------------------------------------------------------
-    final |       0 |       0 |        0 |      0 |     0 |   +53.8% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+    final |       0 |       0 |        0 |      0 |     0 |   +84.6% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
 ------------------------------------------------------------------------------------------------------------------------------
 [WARNING RSZ-0062] Unable to repair all setup violations.
 worst slack max -0.157

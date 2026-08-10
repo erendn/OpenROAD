@@ -1,0 +1,243 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: td1
+[INFO ODB-0130]     Created 6 pins.
+[INFO ODB-0131]     Created 3 components and 15 component-terminals.
+[INFO ODB-0132]     Created 2 special nets and 0 connections.
+[INFO ODB-0133]     Created 7 nets and 9 connections.
+=== downsize_guard gs_veto_local ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 3 cells replaced (loop); 4/4 sweeps accepted, 0 rolled back; 3 replacements attempted in total (3 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.278 -> -0.157 (0.121); TNS -0.5 -> -0.3 (0.2); leakage 7.89e-08 -> 2.07e-07W (+162.00%); area 3.46e-12 -> 6.38e-12m^2 (+84.62%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   +84.6% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== downsize_guard gs_veto_incremental ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_incremental traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 1 cells replaced (loop); 3/3 sweeps accepted, 0 rolled back; 1 replacements attempted in total (1 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (-0.000); TNS -0.3 -> -0.3 (-0.0); leakage 2.07e-07 -> 2.43e-07W (+17.74%); area 6.38e-12 -> 7.45e-12m^2 (+16.67%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   +16.7% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== downsize_guard gs_veto_no_climb ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=0 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== downsize_guard gs_veto_permissive ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=2 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== downsize_guard gs_no_guard ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=none move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== downsize_guard jacobi_no_guard ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=none move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== downsize_guard gs_depth_budget ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== cross jacobi + local_slack_veto (warns RSZ-0430) ===
+[WARNING RSZ-0430] GLOBAL_SIZING: downsize_guard=local_slack_veto under the jacobi_snapshot engine can only test candidates against the frozen sweep-start required times, and does not bound the sum of simultaneous downsizes on a path (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== cross gauss_seidel + depth_budget (warns RSZ-0431) ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== cross cost_global_phi + cost_fanout_slew (warns RSZ-0429) ===
+[WARNING RSZ-0429] GLOBAL_SIZING: cost_global_phi and cost_fanout_slew both price the immediate sink level's slew sensitivity, so enabling both double-prices it.
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=true cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== preset flach_partial (local_slack_veto) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=flach_partial init=min_size_fixviol init_seed=0 seed=constant update=flach_slack_scaling mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=relative timing_scale=unit term=pure_cap best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=true cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size_fixviol - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 3/3 editable instances.
+[INFO RSZ-0445] GLOBAL_SIZING: min_size_fixviol repair - 2 of 3 editable gates violated max-cap/max-slew after the min-size reset; 2 cleared by upsizing, 0 still violating (no member of the swappable group clears them).
+[INFO RSZ-0400] GLOBAL_SIZING: 3 cells replaced (loop); 20/20 sweeps accepted, 0 rolled back; 3 replacements attempted in total (3 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== preset reimann_partial (local_slack_veto) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=reimann_partial init=as_given init_seed=0 seed=estimation_loop update=reimann_dwns mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=pure_cap best=reimann_score | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=slack_target livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 4 cells replaced (loop); 20/20 sweeps accepted, 0 rolled back; 4 replacements attempted in total (2 upsize, 2 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.07e-07W (-15.06%); area 7.45e-12 -> 6.38e-12m^2 (-14.29%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   -14.3% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== preset mangiras_partial (local_slack_veto) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=mangiras_partial init=as_given init_seed=0 seed=state_adaptive update=flach_slack_scaling mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=mangiras_size_step fast_olr_start=5 output_drc_veto=absolute timing_scale=unit term=stagnation_windows best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=1/1/0.01/true near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 1 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 1 replacements attempted in total (1 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (-0.000); TNS -0.3 -> -0.3 (-0.0); leakage 2.07e-07 -> 2.43e-07W (+17.74%); area 6.38e-12 -> 7.45e-12m^2 (+16.67%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   +16.7% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== preset sharma_seq_partial (local_slack_veto) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=sharma_seq_partial init=min_size_fixviol init_seed=0 seed=constant update=sharma_cexp mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=sharma_fast_olr fast_olr_start=5 output_drc_veto=absolute timing_scale=unit term=stagnation_windows best=flach_dominance | max_iter=160 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=1 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=true cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=0.01 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size_fixviol - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 3/3 editable instances.
+[INFO RSZ-0445] GLOBAL_SIZING: min_size_fixviol repair - 2 of 3 editable gates violated max-cap/max-slew after the min-size reset; 2 cleared by upsizing, 0 still violating (no member of the swappable group clears them).
+[INFO RSZ-0400] GLOBAL_SIZING: 3 cells replaced (loop); 160/160 sweeps accepted, 0 rolled back; 3 replacements attempted in total (3 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.157 -> -0.157 (0.000); TNS -0.3 -> -0.3 (0.0); leakage 2.43e-07 -> 2.43e-07W (+0.00%); area 7.45e-12 -> 7.45e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |   -0.157 |       -0.4 |       -0.3 |      2 | y2
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+worst slack max -0.157
+=== report_global_sizing_config ===
+*******************************************
+Global sizing config:
+-preset:                 undefined
+-init_mode:              undefined
+-init_seed:              undefined
+-lambda_seed:            undefined
+-lambda_update:          undefined
+-mu_policy:              undefined
+-sweep_engine:           undefined
+-gs_refresh:             undefined
+-traversal:              undefined
+-downsize_guard:         local_slack_veto
+-move_set:               undefined
+-fast_olr_start_iter:    undefined
+-output_drc_veto:        relative
+-timing_scale:           undefined
+-termination:            undefined
+-best_tracker:           undefined
+-include_clock_network:  undefined
+-setup_slack_margin:     undefined
+-max_iterations:         undefined
+-beta:                   undefined
+-mu_exponent:            undefined
+-lambda_floor:           undefined
+-timing_bias:            undefined
+-budget_safety_factor:   undefined
+-upsize_hysteresis:      0.0
+-lambda_init_value:      undefined
+-lambda_seed_exponent:   undefined
+-est_loop_iters:         undefined
+-lambda_update_c:        undefined
+-flach_k_init:           undefined
+-flach_k_tns_small:      undefined
+-flach_k_final:          undefined
+-sharma_r:               undefined
+-sharma_k:               undefined
+-reimann_rho_init:       undefined
+-reimann_k:              undefined
+-reimann_setpoint:       undefined
+-livramento_alpha0:      undefined
+-cost_upstream_load:     undefined
+-cost_fanout_slew:       undefined
+-cost_global_phi:        undefined
+-cost_delta_delay:       undefined
+-gamma_local_slack:      1.5
+-stagnation_window:      undefined
+-stagnation_count:       undefined
+-stagnation_improve_frac: undefined
+-stagnation_require_tns: undefined
+-near_met_gate_frac:     undefined
+-term_tns_target_frac:   undefined
+-term_wns_target_frac:   undefined
+-term_tns_improve_frac:  undefined
+-term_power_improve_frac: undefined
+-term_improve_window:    undefined
+-term_wall_limit_s:      undefined
+-best_tns_target_frac:   undefined
+*******************************************

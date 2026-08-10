@@ -1,0 +1,20 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: td1
+[INFO ODB-0130]     Created 6 pins.
+[INFO ODB-0131]     Created 3 components and 15 component-terminals.
+[INFO ODB-0132]     Created 2 special nets and 0 connections.
+[INFO ODB-0133]     Created 7 nets and 9 connections.
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=sharma_seq_partial init=min_size_fixviol init_seed=0 seed=constant update=sharma_cexp mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=sharma_fast_olr fast_olr_start=5 output_drc_veto=absolute timing_scale=unit term=stagnation_windows best=flach_dominance | max_iter=40 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=1 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=true cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=0.01 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size_fixviol - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 0/3 editable instances.
+[INFO RSZ-0445] GLOBAL_SIZING: min_size_fixviol repair - 2 of 3 editable gates violated max-cap/max-slew after the min-size reset; 2 cleared by upsizing, 0 still violating (no member of the swappable group clears them).
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 15/15 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.038 -> 0.045 (0.083); TNS -0.0 -> 0.0 (0.0); leakage 7.89e-08 -> 1.22e-07W (+54.09%); area 3.46e-12 -> 4.26e-12m^2 (+23.08%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   +23.1% |    0.045 |        0.0 |        0.0 |      0 | y2
+------------------------------------------------------------------------------------------------------------------------------
+worst slack max 0.045
+=== ERC after global sizing ===

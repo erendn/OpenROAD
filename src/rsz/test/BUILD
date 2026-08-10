@@ -251,7 +251,28 @@ TESTS = [
     "measured_vt_swap",
     "global_sizing",
     "global_sizing_threads",
-    "global_sizing_presize",
+    "global_sizing_cap_recheck",
+    "global_sizing_cap_recheck_gs",
+    "global_sizing_init_min_size",
+    "global_sizing_init_min_size_fixviol",
+    "global_sizing_init_max_size",
+    "global_sizing_init_average",
+    "global_sizing_init_random",
+    "global_sizing_preset",
+    "global_sizing_lambda_update",
+    "global_sizing_lambda_fresh_tennakoon",
+    "global_sizing_lambda_fresh_livramento",
+    "global_sizing_move_set",
+    "global_sizing_lambda_seed",
+    "global_sizing_mu_policy",
+    "global_sizing_cost_terms",
+    "global_sizing_sweep_engine",
+    "global_sizing_guard",
+    "global_sizing_termination",
+    "global_sizing_dont_touch",
+    "global_sizing_closable",
+    "global_sizing_chinnery",
+    "global_sizing_met_recovery",
     "inferred_clock_gator_time_borrow",
     "inferred_clock_gator_time_borrow_covered",
     "inferred_clock_gator_time_borrow_repair_pin",
@@ -329,7 +350,200 @@ test_suite(
     name = "cpp_tests",
     tests = [
         ":TestBufRem1",
+        ":TestCostTerms",
+        ":TestFlowProjection",
+        ":TestLambdaSeeder",
+        ":TestLambdaUpdater",
         ":TestResizer",
+        ":TestGuards",
+        ":TestCapRecheck",
+        ":TestInitPass",
+        ":TestLambdaMuPairing",
+        ":TestElectricalVeto",
+        ":TestSizeVthGrid",
+        ":TestSweepEngine",
+        ":TestTermination",
+        ":TestTimingScale",
+    ],
+)
+
+cc_test(
+    name = "TestCostTerms",
+    srcs = ["cpp/TestCostTerms.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestFlowProjection",
+    srcs = ["cpp/TestFlowProjection.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestTimingScale",
+    srcs = ["cpp/TestTimingScale.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestLambdaUpdater",
+    srcs = ["cpp/TestLambdaUpdater.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestLambdaSeeder",
+    srcs = ["cpp/TestLambdaSeeder.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestCapRecheck",
+    srcs = ["cpp/TestCapRecheck.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestElectricalVeto",
+    srcs = ["cpp/TestElectricalVeto.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestSizeVthGrid",
+    srcs = ["cpp/TestSizeVthGrid.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestLambdaMuPairing",
+    srcs = ["cpp/TestLambdaMuPairing.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestInitPass",
+    srcs = ["cpp/TestInitPass.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestGuards",
+    srcs = ["cpp/TestGuards.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestSweepEngine",
+    srcs = ["cpp/TestSweepEngine.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "TestTermination",
+    srcs = ["cpp/TestTermination.cc"],
+    copts = ["-Isrc/rsz/src"],
+    features = ["-layering_check"],  # TODO: includes private headers
+    deps = [
+        "//src/rsz",  # build_cleaner keep provides the private headers
+        "//src/sta:opensta_lib",
+        "//src/utl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

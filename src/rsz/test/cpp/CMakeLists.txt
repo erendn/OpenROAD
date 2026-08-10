@@ -230,3 +230,380 @@ gtest_discover_tests(TestRepairHoldRollback
 
 add_dependencies(build_and_test TestRepairHoldRollback
 )
+
+add_executable(TestLambdaUpdater TestLambdaUpdater.cc)
+target_link_libraries(TestLambdaUpdater
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestLambdaUpdater
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestLambdaUpdater
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestLambdaUpdater
+)
+
+add_executable(TestLambdaSeeder TestLambdaSeeder.cc)
+target_link_libraries(TestLambdaSeeder
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestLambdaSeeder
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestLambdaSeeder
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestLambdaSeeder
+)
+
+add_executable(TestFlowProjection TestFlowProjection.cc)
+target_link_libraries(TestFlowProjection
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestFlowProjection
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestFlowProjection
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestFlowProjection
+)
+
+add_executable(TestTimingScale TestTimingScale.cc)
+target_link_libraries(TestTimingScale
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestTimingScale
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestTimingScale
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestTimingScale
+)
+
+add_executable(TestCostTerms TestCostTerms.cc)
+target_link_libraries(TestCostTerms
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestCostTerms
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestCostTerms
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestCostTerms
+)
+
+add_executable(TestSweepEngine TestSweepEngine.cc)
+target_link_libraries(TestSweepEngine
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestSweepEngine
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestSweepEngine
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestSweepEngine
+)
+
+add_executable(TestCapRecheck TestCapRecheck.cc)
+target_link_libraries(TestCapRecheck
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestCapRecheck
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestCapRecheck
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestCapRecheck
+)
+
+add_executable(TestElectricalVeto TestElectricalVeto.cc)
+target_link_libraries(TestElectricalVeto
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestElectricalVeto
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestElectricalVeto
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestElectricalVeto
+)
+
+add_executable(TestSizeVthGrid TestSizeVthGrid.cc)
+target_link_libraries(TestSizeVthGrid
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestSizeVthGrid
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestSizeVthGrid
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestSizeVthGrid
+)
+
+add_executable(TestLambdaMuPairing TestLambdaMuPairing.cc)
+target_link_libraries(TestLambdaMuPairing
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestLambdaMuPairing
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestLambdaMuPairing
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestLambdaMuPairing
+)
+
+add_executable(TestInitPass TestInitPass.cc)
+target_link_libraries(TestInitPass
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestInitPass
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestInitPass
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestInitPass
+)
+
+add_executable(TestGuards TestGuards.cc)
+target_link_libraries(TestGuards
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestGuards
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestGuards
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestGuards
+)
+
+add_executable(TestTermination TestTermination.cc)
+target_link_libraries(TestTermination
+        OpenSTA
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
+        dbSta_lib
+        utl_lib
+        rsz_lib
+        grt_lib
+        dpl_lib
+        stt_lib
+        odb
+        tst
+        ${TCL_LIBRARY}
+)
+
+target_include_directories(TestTermination
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/rsz/src
+)
+
+gtest_discover_tests(TestTermination
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+add_dependencies(build_and_test TestTermination
+)

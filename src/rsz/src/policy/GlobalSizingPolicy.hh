@@ -4,37 +4,41 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
-#include <vector>
 
-#include "LRSubproblem.hh"
-#include "MoveCommitter.hh"
 #include "OptimizationPolicy.hh"
 #include "OptimizerTypes.hh"
-#include "RepairSetupContext.hh"
+#include "lr/LrState.hh"
 #include "rsz/GlobalSizingConfig.hh"
-#include "rsz/Resizer.hh"
-#include "sta/GraphClass.hh"
 #include "sta/MinMax.hh"
 
 namespace sta {
-class Edge;
-class LibertyCell;
-class Vertex;
 class dbNetwork;
 }  // namespace sta
 
 namespace rsz {
 
+class InitPass;
+class LambdaSeeder;
+class LambdaUpdater;
+class FlowProjection;
+class SweepEngine;
+class BestTracker;
+class Termination;
+
 // GlobalSizingPolicy: Lagrangian-Relaxation-driven global sizing + Vt
 // assignment, packaged as an OptimizationPolicy phase.
 //
-// Outer loop (in iterate()): allocate λ/μ → seed → project → repeat
-// {update → project → Jacobi sweep over leaf instances → pass-level
-// accept/reject by WNS regression}.
-// Each gate's replacement decision uses LRSubproblem's per-gate cost. Skips the
-// OptimizationPolicy generator/candidate pipeline and the target_collector - LR
-// is not target-driven.
+// The engine is decomposed into per-axis strategies (src/rsz/src/lr/) selected
+// by GlobalSizingConfig and constructed once in start(). This class is the
+// driver: it owns the shared LrState and the strategies and sequences them:
+//
+//   init (InitPass) -> allocate -> seed (LambdaSeeder) -> project
+//   (FlowProjection) -> repeat { update (LambdaUpdater) -> project ->
+//   sweep (SweepEngine) -> STA update -> pass accept/reject } until
+//   Termination, then restore best (BestTracker).
+//
+// Skips the OptimizationPolicy generator/candidate pipeline and the
+// target_collector - LR is not target-driven.
 class GlobalSizingPolicy : public OptimizationPolicy
 {
  public:
@@ -49,73 +53,6 @@ class GlobalSizingPolicy : public OptimizationPolicy
   void iterate() override;
 
  private:
-  using PresizeCellCache
-      = std::unordered_map<sta::LibertyCell*, sta::LibertyCell*>;
-
-  // === Setup ================================================================
-  // Pick the deterministic presize target within the swappable-equivalent set.
-  sta::LibertyCell* selectPresizeCell(
-      sta::LibertyCell* current_cell,
-      GlobalSizingConfig::PresizeMode mode,
-      PresizeCellCache& presize_cell_cache) const;
-  // Apply the selected presize to the live design before LR state is seeded.
-  int applyPresize(GlobalSizingConfig::PresizeMode mode,
-                   bool include_clock_network);
-  // Discover graph size (edges, endpoints), set dcalc_ap_, size vectors.
-  void allocate();
-  // Delay-proportional λ seed + WNS-biased μ seed.
-  void seedMultipliers(const GlobalSizingConfig& params);
-  // Multiplicative λ update via dual-subgradient + re-seed of μ from the
-  // current slack picture. Called at the start of each outer iteration
-  // after iteration 0.
-  void updateMultipliers(const GlobalSizingConfig& params);
-  // Reverse-topological projection onto the KKT flow-balance polytope.
-  // After projection:
-  //   Σλ_in(v) = Σλ_out(v) for internal v
-  //   Σλ_in(k) = μ_k for each endpoint k
-  void projectFlowBalance(const GlobalSizingConfig& params);
-  // Tally of one Jacobi sweep. `moves` is the total cell replacements applied
-  // to the journal this sweep (tentative - the pass-acceptance test in
-  // iterate() may still roll the whole sweep back).
-  struct SweepStats
-  {
-    int moves = 0;
-    int upsizes = 0;
-    int downsizes = 0;
-  };
-
-  // One Jacobi sweep over all leaf instances, in three phases:
-  //   A buildSnapshots()  - main thread: freeze each gate's timing/DRC state
-  //   B parallel evaluate - workers: score every snapshot independently
-  //   C applyDecisions()  - main thread: apply the winning replacements
-  // The per-sweep timing update is done by the caller (iterate()), once,
-  // after this returns.
-  SweepStats singleSweep(float timing_weight);
-
-  // Phase A pre-pass: Compute the per-vertex depth-normalized downsize budget
-  //   budget(v) = max(0, slack(v) - margin) / depth(v)
-  // where depth(v) is the gate count on the longest path through v.
-  // Distributing by depth guarantees the per-path sum of budgets <= path slack,
-  // while using each vertex's own (worst-path) slack keeps every gate within
-  // all its paths.
-  void computeSlackBudgets();
-
-  // Phase A: Capture the frozen per-gate snapshots for every evaluable leaf
-  // instance, in a stable order. Reads live STA and warms the lazy
-  // Liberty/dbNetwork caches on the main thread.
-  std::vector<LRSubproblem::GateSnapshot> buildSnapshots();
-
-  // Phase C: Apply the accepted replacements in vector order. No timing query
-  // may run here - the single batched update happens in iterate() afterwards.
-  SweepStats applyDecisions(
-      const std::vector<LRSubproblem::GateDecision>& decisions,
-      int visited);
-
-  // Auto-scale timing weight so the output-cone timing term is comparable to
-  // the leakage term on the median gate of this design. Anchored to the
-  // output-cone term only (not the upstream-Cin term).
-  float computeAutoTimingWeight(const GlobalSizingConfig& params) const;
-
   // === Diagnostics ==========================================================
   struct DesignSnap
   {
@@ -126,27 +63,37 @@ class GlobalSizingPolicy : public OptimizationPolicy
   };
   DesignSnap computeDesignSnap() const;
 
-  // === Graph helpers ========================================================
-  bool isDataArc(const sta::Edge* edge) const;
-  float edgeMaxArcDelay(sta::Edge* edge) const;
+  // Echo the effective config (preset + every knob) as an INFO run header.
+  void logEffectiveConfig() const;
+
+  // B2 (M3): refresh the policy-level cost-term state the sweep workers read
+  // frozen - the reverse-topological φ pass (cost_global_phi) and the per-arc
+  // reference-delay store (cost_delta_delay). Runs on the main thread before
+  // each sweep; a no-op when both flags are off.
+  void prepareCostTerms();
+
+  // Reimann Alg. 2 loop 1: est_loop_iters dry-run sweeps that estimate a
+  // warm-start lambda field. Each iteration commits a sweep, updates lambda
+  // from the resulting timing, then rolls the sweep back via the journal
+  // (engine-agnostic dry run) so only lambda carries forward. Called before the
+  // main loop when lambda_seed == estimation_loop.
+  void runEstimationLoop(float timing_weight);
 
   // === Policy state =========================================================
   GlobalSizingConfig gs_config_;
   sta::dbNetwork* db_network_ = nullptr;
+  // Shared LR multiplier state + read-only STA handles, passed to strategies.
+  LrState state_;
 
-  // Per-edge multipliers, indexed by sta::Edge::id (sparse)
-  std::vector<float> lambda_;
-  // Per-vertex depth-normalized downsize budget, indexed by sta::Graph vertex
-  // id. Rebuilt each sweep by computeSlackBudgets().
-  std::vector<float> vertex_budget_;
-  // Per-endpoint multipliers, indexed by a dense endpoint index
-  std::vector<float> mu_;
-  // Dense endpoint bookkeeping
-  std::vector<sta::Vertex*> endpoint_vertices_;
-  std::unordered_map<const sta::Vertex*, int> endpoint_index_;
+  // Per-axis strategies, constructed from gs_config_ in start().
+  std::unique_ptr<InitPass> init_pass_;
+  std::unique_ptr<LambdaSeeder> seeder_;
+  std::unique_ptr<LambdaUpdater> updater_;
+  std::unique_ptr<FlowProjection> projection_;
+  std::unique_ptr<SweepEngine> sweep_engine_;
+  std::unique_ptr<BestTracker> best_tracker_;
+  std::unique_ptr<Termination> termination_;
 
-  sta::DcalcAPIndex dcalc_ap_ = 0;
-  std::unique_ptr<LRSubproblem> subproblem_;  // Per-gate cost evaluator
   const sta::MinMax* policy_max_ = sta::MinMax::max();
 };
 

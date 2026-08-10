@@ -528,9 +528,8 @@ void GlobalRouter::finishGlobalRouting(bool save_guides)
   updateDbCongestion();
   saveCongestion();
 
-  if (verbose_) {
-    reportCongestion();
-  }
+  // Always emit the overflow metrics; print the GRT-96 table only when verbose.
+  reportCongestion(verbose_);
   computeWirelength();
   if (verbose_) {
     logger_->info(GRT, 14, "Routed nets: {}", routes_.size());
@@ -6001,7 +6000,7 @@ void GlobalRouter::reportResources()
   logger_->report("");
 }
 
-void GlobalRouter::reportCongestion()
+void GlobalRouter::reportCongestion(bool report_summary)
 {
   if (use_cugr_) {
     cugr_->computeCongestionInformation();
@@ -6031,64 +6030,81 @@ void GlobalRouter::reportCongestion()
   int total_h_overflow = 0;
   int total_v_overflow = 0;
 
-  logger_->report("");
-  logger_->info(GRT, 96, "Final congestion report:");
-  logger_->report(
-      "Layer         Resource        Demand        Usage (%)    Max H / "
-      "Max "
-      "V "
-      "/ Total Congestion");
-  logger_->report(
-      "--------------------------------------------------------------------"
-      "--"
-      "-----------------");
+  if (report_summary) {
+    logger_->report("");
+    logger_->info(GRT, 96, "Final congestion report:");
+    logger_->report(
+        "Layer         Resource        Demand        Usage (%)    Max H / "
+        "Max "
+        "V "
+        "/ Total Congestion");
+    logger_->report(
+        "--------------------------------------------------------------------"
+        "--"
+        "-----------------");
+  }
 
   for (size_t l = 0; l < resources.size(); l++) {
-    float usage_percentage;
-    if (resources[l] == 0) {
-      usage_percentage = 0.0;
-    } else {
-      usage_percentage = (float) demands[l] / (float) resources[l];
-      usage_percentage *= 100;
-    }
-
     total_resource += resources[l];
     total_demand += demands[l];
     total_overflow += overflows[l];
     total_h_overflow += max_h_overflows[l];
     total_v_overflow += max_v_overflows[l];
 
-    odb::dbTechLayer* layer = routing_layers_[l + 1];
+    if (report_summary) {
+      float usage_percentage;
+      if (resources[l] == 0) {
+        usage_percentage = 0.0;
+      } else {
+        usage_percentage = (float) demands[l] / (float) resources[l];
+        usage_percentage *= 100;
+      }
+
+      odb::dbTechLayer* layer = routing_layers_[l + 1];
+      logger_->report(
+          "{:7s}      {:9}       {:7}        {:8.2f}%            {:2} / {:2} "
+          "/ "
+          "{:2}",
+          layer->getName(),
+          resources[l],
+          demands[l],
+          usage_percentage,
+          max_h_overflows[l],
+          max_v_overflows[l],
+          overflows[l]);
+    }
+  }
+
+  if (report_summary) {
+    float total_usage
+        = (total_resource == 0)
+              ? 0
+              : (float) total_demand / (float) total_resource * 100;
     logger_->report(
-        "{:7s}      {:9}       {:7}        {:8.2f}%            {:2} / {:2} "
+        "--------------------------------------------------------------------"
+        "--"
+        "-----------------");
+    logger_->report(
+        "Total        {:9}       {:7}        {:8.2f}%            {:2} / {:2} "
         "/ "
         "{:2}",
-        layer->getName(),
-        resources[l],
-        demands[l],
-        usage_percentage,
-        max_h_overflows[l],
-        max_v_overflows[l],
-        overflows[l]);
+        total_resource,
+        total_demand,
+        total_usage,
+        total_h_overflow,
+        total_v_overflow,
+        total_overflow);
+    logger_->report("");
   }
-  float total_usage = (total_resource == 0)
-                          ? 0
-                          : (float) total_demand / (float) total_resource * 100;
-  logger_->report(
-      "--------------------------------------------------------------------"
-      "--"
-      "-----------------");
-  logger_->report(
-      "Total        {:9}       {:7}        {:8.2f}%            {:2} / {:2} "
-      "/ "
-      "{:2}",
-      total_resource,
-      total_demand,
-      total_usage,
-      total_h_overflow,
-      total_v_overflow,
-      total_overflow);
-  logger_->report("");
+
+  // Surface the congestion summary as metrics unconditionally -- the GRT-96
+  // report above is verbose-only, but downstream flows (ORFS metadata, QoR
+  // studies) need the overflow even in non-verbose runs, and log scraping is
+  // not reproducible (ORFS discards stage logs). Matches the grt
+  // "global_route__" metric namespace (cf. global_route__wirelength/__vias).
+  logger_->metric("global_route__overflow__total", total_overflow);
+  logger_->metric("global_route__overflow__max",
+                  std::max(total_h_overflow, total_v_overflow));
 }
 
 void GlobalRouter::reportNetLayerWirelengths(odb::dbNet* db_net,
@@ -6632,7 +6648,7 @@ std::vector<Net*> GlobalRouter::updateDirtyRoutesFastRoute(bool save_guides)
         is_congested_ = true;
         updateDbCongestion();
         saveCongestion();
-        reportCongestion();
+        reportCongestion(/* report_summary */ true);
         // Suggest adjustment value
         suggestAdjustment();
         logger_->error(GRT,

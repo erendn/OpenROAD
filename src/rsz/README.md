@@ -458,13 +458,19 @@ global sizing driver. These options only affect
 `repair_timing -phases GLOBAL_SIZING`; they have no effect on other phases.
 Values persist on the block as dbProperties.
 
-Typical use sets only `-presize_mode` and `-include_clock_network`; the
+Typical use sets only `-init_mode` and `-include_clock_network`; the
 remaining options are LR-algorithm tuning hyperparameters that most users
 should leave at their defaults.
 
 ```tcl
 set_global_sizing_config
-    [-presize_mode mode]
+    [-preset name]
+    [-init_mode mode]
+    [-init_seed int_value]
+    [-move_set set]
+    [-fast_olr_start_iter int_value]
+    [-output_drc_veto mode]
+    [-termination rule]
     [-include_clock_network boolean_value]
     [-setup_slack_margin float_value]
     [-max_iterations int_value]
@@ -473,21 +479,29 @@ set_global_sizing_config
     [-lambda_floor float_value]
     [-timing_bias float_value]
     [-budget_safety_factor float_value]
+    [-upsize_hysteresis float_value]
 ```
 
 #### Options
 
 | Switch Name | Description |
 | ----- | ----- |
-| `-presize_mode` | Pre-LR initialization. One of `disabled` (default), `min_size_max_vt` (replace every editable instance with its smallest-leakage equivalent), or `max_size_min_vt` (replace every editable instance with its largest-leakage equivalent). |
+| `-preset` | Named bundle setting every algorithm axis at once. `rsz_baseline` (default) is OpenROAD's own configuration; the `*_partial` presets each select one published algorithm's axis options. Later individual switches override the bundle. |
+| `-init_mode` | Pre-LR initial solution: replace every editable instance with another member of its swappable-equivalence group. The group is RANKED BY CELL LEAKAGE (drive resistance breaks a tie), so the size-flavored names below mean min/max/median *of the leakage ranking*. One of `as_given` (default, keep the incoming netlist), `min_size` (lowest-ranked member), `max_size` (highest-ranked member), `min_size_fixviol` (`min_size` followed by a reverse-topological electrical repair pass: each gate whose own output pins violate max-cap or max-slew after the reset is upsized to the lowest-ranked member of its group that clears them, and a gate no member clears is reported by RSZ-0445 and left at minimum), `random` (uniform per-instance draw over the whole group, seeded by `-init_seed`), or `average` (the lower median of the ranking). The paper presets set what their papers state: `chen_partial` and `livramento_partial` use `min_size`, `flach_partial` and `sharma_seq_partial` use `min_size_fixviol`; the rest keep `as_given`. |
+| `-init_seed` | Seed for `-init_mode random`. A non-negative integer; default 0. Inert (and warned about) under any other `-init_mode`. Each instance's draw is keyed by a hash of (seed, instance path name), so one seed reproduces the same initial netlist regardless of instance iteration order or thread count. Independent of the global-placement seed. |
+| `-move_set` | Which members of a gate's swappable-equivalence group the per-gate LR subproblem is allowed to evaluate at all. Distinct from `-output_drc_veto`, which filters candidates the cost has already scored. `full_library` (default) evaluates every member every iteration. `sharma_fast_olr` evaluates every member until `-fast_olr_start_iter`, then switches to a hill descent along the member ranking of the gate's current threshold-voltage flavor and its two neighbours, stopping each direction at the first non-improving step. `mangiras_size_step` restricts every iteration to a one-step move up or down that ranking, with flavor swaps unrestricted. Both restricted sets rank members BY CELL LEAKAGE inside a flavor — the same proxy `-init_mode` uses — so "next bigger size" means "next member up that ranking". A restricted set is a runtime and stability device, not a quality one: it can miss a member the exhaustive scan would have found, and it changes what the sweep enumerates on every iteration it is active. The paper presets set what their papers state: `sharma_seq_partial` uses `sharma_fast_olr` (Fig. 9) and `mangiras_partial` uses `mangiras_size_step` (§4.3); `chinnery_partial` pins `full_library` explicitly (its paper's own pruning is a different scheme and is not implemented), and the rest keep `full_library` by default. |
+| `-fast_olr_start_iter` | The 1-based λ-updated LR iteration at which `-move_set sharma_fast_olr` switches from the exhaustive scan to the hill descent; the pre-update sweep does not count, so 1 makes the descent active from the first λ-updated sweep and 0 from the pre-update sweep before it. A non-negative integer; default 5, which is the paper's own schedule (exhaustive for the first four iterations). Inert (and warned about) under any other `-move_set`. |
+| `-output_drc_veto` | What the sweep's always-on max-cap / max-slew candidate filter does on an output pin the gate's CURRENT cell already violates. `absolute` (default) rejects any candidate whose own limits are exceeded, whatever the current cell was doing — so a gate no member of its swappable group can clear is frozen at the cell it entered the loop holding. `relative` rejects only a candidate that makes an existing violation WORSE; an equal violation is admitted, and on a clean pin the absolute check applies unchanged, so under neither setting does a single candidate introduce a violation *at the load its gate was snapshotted with*. That is not a guarantee about the phase: the filter is blind to the load a gate's neighbours commit in the same sweep, which is why a post-sweep max-cap re-check exists and reports its reverts as RSZ-0443 — and no equivalent re-check covers max-slew. Nor does either setting repair a violation the design arrived with: `absolute` will incidentally clear some (on a violating pin it admits only candidates that fully clear), `relative` generally will not, so on a design whose library cannot meet its constraints `relative` can leave more residual ERC. Check `report_check_types -max_capacitance -max_slew` either way. The input side of the filter is relative under both settings. The paper presets set what their papers state: `flach_partial` (Alg. 4 line 6, "if load violation has increased") and `chinnery_partial` (§6, "alternatives that would increase max-load-capacitance or max-input-slew violations are skipped") use `relative`; the rest keep `absolute`. |
+| `-termination` | LR stop rule. `fixed_iters` (default) is the iteration cap plus two post-sweep exits — 3 consecutive sweeps that regressed worst slack, or 2 consecutive sweeps that moved nothing; `stagnation_windows` stops on a power/TNS improvement plateau; `threshold_battery` runs a timing phase then a power phase; `pure_cap` stops only at the iteration cap. **No option stops merely because timing is met** — global sizing minimizes leakage and area subject to timing, so a design that already meets timing is a normal input and the phase runs on it. |
 | `-include_clock_network` | If true, allow global sizing to size clock network instances. Default false (clock instances are excluded). |
-| `-setup_slack_margin` | WNS target for the LR convergence check. Default 0.0. |
+| `-setup_slack_margin` | Slack target the LR machinery measures against: it sets the per-gate downsize budget (`slack − margin`), the endpoint μ seed, and the λ-update slack references. Default 0.0. It does **not** terminate the loop. |
 | `-max_iterations` | Maximum LR outer-loop iterations. Default 20. |
 | `-beta` | Step size α for the dual-subgradient update on λ. Default 0.6. |
 | `-mu_exponent` | Endpoint seed exponent for μ. Default 2.0. |
 | `-lambda_floor` | Floor on per-edge multipliers so unused arcs can re-enter. Default 1e-12. |
 | `-timing_bias` | Dimensionless balance between timing pressure and leakage cost. Default 64.0. |
 | `-budget_safety_factor` | Safety derate (≤ 1) on the per-gate distributed downsize budget. Default 1.0. |
+| `-upsize_hysteresis` | Relative LR-cost improvement an upsize must beat to be accepted (downsizes accept any improvement). Filters cost noise that would churn the design for no timing win. Default 0.02; the paper presets set 0.0 (the plain LRS argmin). |
 
 ### Reporting Global Sizing Configuration
 
@@ -508,7 +522,13 @@ policy's built-in defaults.
 
 ```tcl
 reset_global_sizing_config
-    [-presize_mode]
+    [-preset]
+    [-init_mode]
+    [-init_seed]
+    [-move_set]
+    [-fast_olr_start_iter]
+    [-output_drc_veto]
+    [-termination]
     [-include_clock_network]
     [-setup_slack_margin]
     [-max_iterations]
@@ -517,6 +537,7 @@ reset_global_sizing_config
     [-lambda_floor]
     [-timing_bias]
     [-budget_safety_factor]
+    [-upsize_hysteresis]
 ```
 
 ### Finding Equivalent Cells

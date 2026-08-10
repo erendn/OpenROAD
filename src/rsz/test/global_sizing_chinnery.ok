@@ -1,0 +1,55 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: td1
+[INFO ODB-0130]     Created 6 pins.
+[INFO ODB-0131]     Created 3 components and 15 component-terminals.
+[INFO ODB-0132]     Created 2 special nets and 0 connections.
+[INFO ODB-0133]     Created 7 nets and 9 connections.
+=== leg 1: chinnery_partial, both phases, closes ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=chinnery_partial init=as_given init_seed=0 seed=constant update=sharma_cexp mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=relative timing_scale=unit term=threshold_battery best=none | max_iter=80 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=1 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=0 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0450] GLOBAL_SIZING threshold_battery: timing phase ended after 4 iteration(s) (TNS improvement stalled); handing over to the power-reduction phase [tns=-3.80601e-11 wns=-3.80601e-11 leakage=7.89004e-08 T=3.4e-10].
+[INFO RSZ-0451] GLOBAL_SIZING threshold_battery: stopped after 8 iteration(s) (4 timing + 4 power) in the power phase (power improvement stalled) [tns=0 wns=1.83526e-11 leakage=9.62937e-08 T=3.4e-10].
+[INFO RSZ-0400] GLOBAL_SIZING: 1 cells replaced (loop); 8/8 sweeps accepted, 0 rolled back; 1 replacements attempted in total (1 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS -0.038 -> 0.018 (0.056); TNS -0.0 -> 0.0 (0.0); leakage 7.89e-08 -> 9.63e-08W (+22.04%); area 3.46e-12 -> 3.99e-12m^2 (+15.38%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   +15.4% |    0.018 |        0.0 |        0.0 |      0 | y1
+------------------------------------------------------------------------------------------------------------------------------
+worst slack max 0.018
+=== leg 2: same bundle on pure_cap (no battery, no phase records) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=chinnery_partial init=as_given init_seed=0 seed=constant update=sharma_cexp mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=relative timing_scale=unit term=pure_cap best=none | max_iter=12 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=1 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=0 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 1 cells replaced (loop); 12/12 sweeps accepted, 0 rolled back; 1 replacements attempted in total (1 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.018 -> 0.045 (0.027); TNS 0.0 -> 0.0 (0.0); leakage 9.63e-08 -> 1.22e-07W (+26.26%); area 3.99e-12 -> 4.26e-12m^2 (+6.67%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +6.7% |    0.045 |        0.0 |        0.0 |      0 | y2
+------------------------------------------------------------------------------------------------------------------------------
+worst slack max 0.045
+=== leg 3: term_* constants are inert off the battery (RSZ-0452) ===
+[WARNING RSZ-0452] GLOBAL_SIZING: the term_* battery constants (0.1/0.01/0.1/0.01/1/2.59e+05) are inert under termination=fixed_iters - only threshold_battery reads them, so every value gives the same run.
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=flach_dominance | max_iter=2 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/1/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.045 -> 0.045 (0.000); TNS 0.0 -> 0.0 (0.0); leakage 1.22e-07 -> 1.22e-07W (+0.00%); area 4.26e-12 -> 4.26e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |    0.045 |        0.0 |        0.0 |      0 | y2
+------------------------------------------------------------------------------------------------------------------------------
+worst slack max 0.045
+=== leg 4: cap exit still reports (2 iterations, no criterion met) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=chinnery_partial init=as_given init_seed=0 seed=constant update=sharma_cexp mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=full_library fast_olr_start=5 output_drc_veto=relative timing_scale=unit term=threshold_battery best=none | max_iter=2 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=1 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=0 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0450] GLOBAL_SIZING threshold_battery: timing phase ended after 1 iteration(s) (TNS target met); handing over to the power-reduction phase [tns=0 wns=4.53236e-11 leakage=1.21581e-07 T=3.4e-10].
+[INFO RSZ-0451] GLOBAL_SIZING threshold_battery: stopped after 2 iteration(s) (1 timing + 1 power) in the power phase (iteration cap reached, no battery criterion met) [tns=0 wns=4.53236e-11 leakage=1.21581e-07 T=3.4e-10].
+[INFO RSZ-0400] GLOBAL_SIZING: 0 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 0 replacements attempted in total (0 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.045 -> 0.045 (0.000); TNS 0.0 -> 0.0 (0.0); leakage 1.22e-07 -> 1.22e-07W (+0.00%); area 4.26e-12 -> 4.26e-12m^2 (+0.00%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.0% |    0.045 |        0.0 |        0.0 |      0 | y2
+------------------------------------------------------------------------------------------------------------------------------
+worst slack max 0.045

@@ -1,0 +1,66 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: reg1
+[INFO ODB-0130]     Created 1 pins.
+[INFO ODB-0131]     Created 15 components and 84 component-terminals.
+[INFO ODB-0132]     Created 2 special nets and 30 connections.
+[INFO ODB-0133]     Created 5 nets and 25 connections.
+=== met at iteration 0 ===
+worst slack max 1.7601
+=== leg 1: rsz_baseline, ORFS helper call form, met design ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=rsz_baseline init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=wns_pass_reject | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 2 cells replaced (loop); 4/4 sweeps accepted, 0 rolled back; 2 replacements attempted in total (0 upsize, 2 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 1.760 -> 1.764 (0.004); TNS 0.0 -> 0.0 (0.0); leakage 1.52e-06 -> 1.4e-06W (-8.02%); area 6.57e-11 -> 6.36e-11m^2 (-3.24%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    -3.2% |    1.764 |        0.0 |        0.0 |      0 | r7/D
+------------------------------------------------------------------------------------------------------------------------------
+[INFO RSZ-0033] No hold violations found.
+worst slack max 1.7643
+=== leg 2: mangiras_partial, same call form ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=mangiras_partial init=as_given init_seed=0 seed=state_adaptive update=flach_slack_scaling mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=mangiras_size_step fast_olr_start=5 output_drc_veto=absolute timing_scale=unit term=stagnation_windows best=flach_dominance | max_iter=20 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=1/1/0.01/true near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0400] GLOBAL_SIZING: 12 cells replaced (loop); 6/6 sweeps accepted, 0 rolled back; 12 replacements attempted in total (0 upsize, 12 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 1.764 -> 1.621 (-0.143); TNS 0.0 -> 0.0 (0.0); leakage 1.4e-06 -> 9.93e-07W (-29.13%); area 6.36e-11 -> 5.67e-11m^2 (-10.88%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |   -10.9% |    1.621 |        0.0 |        0.0 |      0 | r7/D
+------------------------------------------------------------------------------------------------------------------------------
+[INFO RSZ-0033] No hold violations found.
+worst slack max 1.6210
+=== leg 3: sharma_seq_partial (near-met latch fires at iteration 0) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=sharma_seq_partial init=min_size_fixviol init_seed=0 seed=constant update=sharma_cexp mu_policy=endpoint_lambda mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=local_slack_veto move_set=sharma_fast_olr fast_olr_start=5 output_drc_veto=absolute timing_scale=unit term=stagnation_windows best=flach_dominance | max_iter=160 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=1 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=1 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=true cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=0.01 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size_fixviol - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 1/15 editable instances.
+[INFO RSZ-0445] GLOBAL_SIZING: min_size_fixviol repair - 0 of 15 editable gates violated max-cap/max-slew after the min-size reset; 0 cleared by upsizing, 0 still violating (no member of the swappable group clears them).
+[INFO RSZ-0400] GLOBAL_SIZING: 4 cells replaced (loop); 15/15 sweeps accepted, 0 rolled back; 4 replacements attempted in total (4 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 1.621 -> 1.728 (0.107); TNS 0.0 -> 0.0 (0.0); leakage 9.93e-07 -> 1.02e-06W (+2.87%); area 5.67e-11 -> 5.77e-11m^2 (+1.88%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +1.9% |    1.728 |        0.0 |        0.0 |      0 | r7/D
+------------------------------------------------------------------------------------------------------------------------------
+[INFO RSZ-0033] No hold violations found.
+worst slack max 1.7279
+=== leg 4: threshold_battery on a met design (handover, not a stop) ===
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=unset init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=threshold_battery best=flach_dominance | max_iter=6 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1
+[INFO RSZ-0450] GLOBAL_SIZING threshold_battery: timing phase ended after 1 iteration(s) (TNS target met); handing over to the power-reduction phase [tns=0 wns=1.76019e-09 leakage=1.13281e-06 T=2e-09].
+[INFO RSZ-0451] GLOBAL_SIZING threshold_battery: stopped after 5 iteration(s) (1 timing + 4 power) in the power phase (power improvement stalled) [tns=0 wns=1.76483e-09 leakage=1.21893e-06 T=2e-09].
+[INFO RSZ-0400] GLOBAL_SIZING: 3 cells replaced (loop); 5/5 sweeps accepted, 0 rolled back; 3 replacements attempted in total (3 upsize, 0 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 1.728 -> 1.760 (0.032); TNS 0.0 -> 0.0 (0.0); leakage 1.02e-06 -> 1.13e-06W (+10.88%); area 5.77e-11 -> 5.88e-11m^2 (+1.84%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +1.8% |    1.760 |        0.0 |        0.0 |      0 | r7/D
+------------------------------------------------------------------------------------------------------------------------------
+[INFO RSZ-0033] No hold violations found.
+worst slack max 1.7602
+=== leg 5: -outer_guard is gone, not merely off ===
+[ERROR STA-0562] set_global_sizing_config -outer_guard is not a known keyword or flag.
+set_global_sizing_config -outer_guard rejected
+[ERROR STA-0562] reset_global_sizing_config -outer_guard is not a known keyword or flag.
+reset_global_sizing_config -outer_guard rejected
