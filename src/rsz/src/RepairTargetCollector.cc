@@ -4,6 +4,7 @@
 #include "RepairTargetCollector.hh"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -2064,6 +2065,182 @@ void RepairTargetCollector::traverseFaninCone(
         }
       }
     }
+  }
+}
+
+bool RepairTargetCollector::isCandidateDriverPin(const sta::Vertex* drvr_vertex,
+                                                 const sta::Pin* pin) const
+{
+  if (drvr_vertex == nullptr || pin == nullptr) {
+    return false;
+  }
+  if (!drvr_vertex->isDriver(network_) || network_->isTopLevelPort(pin)) {
+    return false;
+  }
+  if (!network_->direction(pin)->isOutput()) {
+    return false;
+  }
+  return !sta_->isClock(pin, sta_->cmdMode());
+}
+
+void RepairTargetCollector::walkEndpointWorstPath(
+    const sta::Pin* endpoint_pin,
+    const sta::Slack endpoint_slack)
+{
+  sta::Vertex* end_vertex = graph_->pinLoadVertex(endpoint_pin);
+  if (end_vertex == nullptr) {
+    return;
+  }
+  sta::Path* path = sta_->vertexWorstSlackPath(end_vertex, max_);
+  if (path == nullptr) {
+    return;
+  }
+
+  sta::PathExpanded expanded(path, sta_);
+  for (size_t i = expanded.startIndex(); i < expanded.size(); i++) {
+    const sta::Path* drvr_path = expanded.path(i);
+    sta::Vertex* drvr_vertex = drvr_path->vertex(sta_);
+    const sta::Pin* pin = drvr_path->pin(sta_);
+    if (isCandidateDriverPin(drvr_vertex, pin)) {
+      BottleneckData& data = bottleneck_data_[pin];
+      if (data.path_count == 0) {
+        data.inst = network_->instance(pin);
+        data.worst_slack = endpoint_slack;
+      }
+      data.path_count++;
+      data.slack_sum = sta::delayAsFloat(data.slack_sum)
+                       + sta::delayAsFloat(endpoint_slack);
+      data.worst_slack = std::min(data.worst_slack, endpoint_slack);
+    }
+  }
+}
+
+vector<const sta::Pin*> RepairTargetCollector::collectBottlenecks(
+    const int min_path_count,
+    const int max_endpoints)
+{
+  violating_pins_.clear();
+  bottleneck_data_.clear();
+
+  collectViolatingEndpoints();
+
+  int endpoints_used = 0;
+  for (const auto& [endpoint_pin, endpoint_slack] : violating_endpoints_) {
+    if (max_endpoints > 0 && endpoints_used >= max_endpoints) {
+      break;
+    }
+    endpoints_used++;
+    walkEndpointWorstPath(endpoint_pin, endpoint_slack);
+  }
+
+  for (const auto& [pin, data] : bottleneck_data_) {
+    if (data.path_count >= min_path_count) {
+      violating_pins_.push_back(pin);
+    }
+  }
+
+  for (const sta::Pin* pin : violating_pins_) {
+    updatePinData(pin, pin_data_[pin]);
+  }
+
+  std::ranges::sort(violating_pins_,
+                    [this](const sta::Pin* a, const sta::Pin* b) {
+                      const BottleneckData& da = bottleneck_data_.at(a);
+                      const BottleneckData& db = bottleneck_data_.at(b);
+                      if (da.path_count != db.path_count) {
+                        return da.path_count > db.path_count;
+                      }
+                      if (da.worst_slack != db.worst_slack) {
+                        return da.worst_slack < db.worst_slack;
+                      }
+                      return network_->pathNameLess(a, b);
+                    });
+
+  for (const sta::Pin* pin : violating_pins_) {
+    markPinConsidered(pin);
+  }
+
+  debugPrint(logger_,
+             RSZ,
+             "violator_collector",
+             2,
+             "Bottlenecks: {} endpoints walked, {} distinct worst-path "
+             "driver pins, {} with path_count >= {}",
+             endpoints_used,
+             bottleneck_data_.size(),
+             violating_pins_.size(),
+             min_path_count);
+
+  return violating_pins_;
+}
+
+void RepairTargetCollector::printPathCountHistogram() const
+{
+  // Fixed bucket edges keep the histogram compact and deterministic.
+  static constexpr std::array<int, 10> bucket_edges
+      = {1, 2, 3, 4, 8, 16, 32, 64, 128, 256};
+  std::array<int, bucket_edges.size() + 1> histogram{};
+  for (const auto& [pin, data] : bottleneck_data_) {
+    size_t bucket = bucket_edges.size();
+    for (size_t b = 0; b < bucket_edges.size(); b++) {
+      if (data.path_count <= bucket_edges[b]) {
+        bucket = b;
+        break;
+      }
+    }
+    histogram[bucket]++;
+  }
+  logger_->report("path_count histogram:");
+  for (size_t b = 0; b < histogram.size(); b++) {
+    if (histogram[b] != 0) {
+      const int lo = b == 0 ? 1 : bucket_edges[b - 1] + 1;
+      if (b == bucket_edges.size()) {
+        logger_->report(
+            "  > {:3}      : {:6}", bucket_edges.back(), histogram[b]);
+      } else if (lo == bucket_edges[b]) {
+        logger_->report("  {:5}      : {:6}", bucket_edges[b], histogram[b]);
+      } else {
+        logger_->report(
+            "  {:3} - {:3}  : {:6}", lo, bucket_edges[b], histogram[b]);
+      }
+    }
+  }
+}
+
+void RepairTargetCollector::reportBottlenecks(const int min_path_count,
+                                              const int num_print) const
+{
+  int max_count = 0;
+  for (const auto& [pin, data] : bottleneck_data_) {
+    max_count = std::max(max_count, data.path_count);
+  }
+  logger_->report(
+      "Bottlenecks: {} violating endpoints, {} distinct worst-path "
+      "driver pins, {} on >= {} paths, max path_count {}",
+      violating_endpoints_.size(),
+      bottleneck_data_.size(),
+      violating_pins_.size(),
+      min_path_count,
+      max_count);
+  if (bottleneck_data_.empty()) {
+    return;
+  }
+
+  printPathCountHistogram();
+
+  logger_->report(
+      "{:>5} {:>10} {:>10} {}", "count", "slack_sum", "worst", "pin");
+  int printed = 0;
+  for (const sta::Pin* pin : violating_pins_) {
+    if (printed++ >= num_print) {
+      break;
+    }
+    const BottleneckData& data = bottleneck_data_.at(pin);
+    logger_->report("{:>5} {:>10} {:>10} {}",
+                    data.path_count,
+                    delayAsString(data.slack_sum, 3, sta_),
+                    delayAsString(data.worst_slack, 3, sta_),
+                    network_->pathName(pin));
   }
 }
 

@@ -449,6 +449,33 @@ struct OptimizationPolicyConfig
   // Experimental. Enable load-dependent STA output-slew bias sampling for
   // the fanin neighbor stage in MT delay estimation.
   bool delay_estimator_sta_slew_bias{false};
+
+  // BOTTLENECK phase: Minimum number of endpoint worst paths a driver
+  // pin must lie on to qualify as a bottleneck.
+  int bottleneck_min_path_count{2};
+
+  // BOTTLENECK phase: Maximum number of collect-and-repair sweeps.
+  int bottleneck_max_sweeps{3};
+
+  // BOTTLENECK phase: Attempt only the top N ranked pins per sweep;
+  // 0 means all qualifying pins.
+  int bottleneck_top_pins{30};
+
+  // BOTTLENECK phase: Stop the sweep early after this many consecutive
+  // rejected pins; 0 disables the streak cutoff.
+  int bottleneck_max_rejections{5};
+
+  // BOTTLENECK phase: Minimum relative TNS gain (delta TNS / |start TNS|)
+  // across a sweep required to continue to the next sweep.
+  double bottleneck_min_tns_gain{0.005};
+
+  // BOTTLENECK phase: Cap on violating endpoints walked during
+  // collection; 0 means all.
+  int bottleneck_max_endpoints{0};
+
+  // BOTTLENECK phase: Collect and report the pool, then make no
+  // repairs (measurement mode).
+  bool bottleneck_report_only{false};
 };
 
 // === Move type labels ======================================================

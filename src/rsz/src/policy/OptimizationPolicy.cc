@@ -284,6 +284,21 @@ void OptimizationPolicy::loadPolicyEnvars()
   // as 0.
   policy_config_.delay_estimator_sta_slew_bias
       = utl::readEnvarInt("RSZ_MT_SLEW_BIAS", 1) > 0;
+  // BOTTLENECK phase tunables.
+  policy_config_.bottleneck_min_path_count
+      = utl::readEnvarNonNegativeInt("RSZ_BOTTLENECK_MIN_COUNT", 2);
+  policy_config_.bottleneck_max_sweeps
+      = utl::readEnvarNonNegativeInt("RSZ_BOTTLENECK_MAX_SWEEPS", 3);
+  policy_config_.bottleneck_top_pins
+      = utl::readEnvarNonNegativeInt("RSZ_BOTTLENECK_TOP_PINS", 30);
+  policy_config_.bottleneck_max_rejections
+      = utl::readEnvarNonNegativeInt("RSZ_BOTTLENECK_MAX_REJECTIONS", 5);
+  policy_config_.bottleneck_min_tns_gain
+      = utl::readEnvarDouble("RSZ_BOTTLENECK_MIN_TNS_GAIN", 0.0025);
+  policy_config_.bottleneck_max_endpoints
+      = utl::readEnvarNonNegativeInt("RSZ_BOTTLENECK_MAX_ENDPOINTS", 0);
+  policy_config_.bottleneck_report_only
+      = utl::readEnvarBool("RSZ_BOTTLENECK_REPORT_ONLY", false);
 }
 
 GeneratorContext OptimizationPolicy::makeGeneratorContext() const

@@ -59,6 +59,19 @@ struct pinData
   int level;
 };
 
+// Per-pin bottleneck data for the BOTTLENECK phase: how many violating
+// endpoints' worst paths cross this driver pin, and how much endpoint slack
+// flows through it.
+struct BottleneckData
+{
+  int path_count{0};          // # violating endpoints whose worst path crosses
+  sta::Slack slack_sum{0.0};  // sum of those endpoints' slacks (all negative)
+  sta::Slack worst_slack{0.0};
+  // Captured at collection time so the policy can skip stale pins after
+  // committed topology moves without dereferencing the pin.
+  const sta::Instance* inst{nullptr};
+};
+
 // Class to collect instances with violating output pins.
 class RepairTargetCollector
 {
@@ -120,6 +133,28 @@ class RepairTargetCollector
   vector<const sta::Pin*> collectViolatorsByPin(
       int numPins,
       ViolatorSortType sort_type = ViolatorSortType::SORT_BY_LOAD_DELAY);
+
+  // Collect candidate bottleneck driver pins on the worst paths of multiple
+  // violating endpoints. Walks the worst path of every violating endpoint
+  // (capped at max_endpoints when > 0), counts per-pin path crossings and
+  // accumulates endpoint slack. Keeps pins crossed by at least min_path_count
+  // worst paths, ranked primarily by path_count descending (highest sharing
+  // first), secondarily by worst_slack ascending (most critical first),
+  // and tertiarily by pin name alphabetically for determinism.
+  vector<const sta::Pin*> collectBottlenecks(int min_path_count,
+                                             int max_endpoints);
+
+  // Report collection statistics gathered by collectBottlenecks():
+  // pool sizes, path_count histogram, and the top ranked pins.
+  void reportBottlenecks(int min_path_count, int num_print = 20) const;
+
+  // Per-pin bottleneck data for the last collectBottlenecks() call;
+  // returns nullptr for pins not seen in that collection.
+  const BottleneckData* getBottleneckData(const sta::Pin* pin) const
+  {
+    auto it = bottleneck_data_.find(pin);
+    return it != bottleneck_data_.end() ? &it->second : nullptr;
+  }
 
   // Collect violators within slack margin of worst endpoint
   // Returns pins where:
@@ -335,6 +370,13 @@ class RepairTargetCollector
           pins_with_slack,
       sta::Slack threshold);
 
+  // === Bottleneck collection helpers =======================================
+  bool isCandidateDriverPin(const sta::Vertex* drvr_vertex,
+                            const sta::Pin* pin) const;
+  void walkEndpointWorstPath(const sta::Pin* endpoint_pin,
+                             sta::Slack endpoint_slack);
+  void printPathCountHistogram() const;
+
   // === Shared services ======================================================
   Resizer* resizer_;
   utl::Logger* logger_;
@@ -357,6 +399,7 @@ class RepairTargetCollector
   float slack_margin_;
   vector<const sta::Pin*> violating_pins_;
   std::map<const sta::Pin*, pinData> pin_data_;
+  std::map<const sta::Pin*, BottleneckData> bottleneck_data_;
   vector<std::pair<const sta::Pin*, sta::Slack>> violating_endpoints_;
   vector<std::pair<const sta::Pin*, sta::Slack>> violating_startpoints_;
 

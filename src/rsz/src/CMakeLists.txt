@@ -29,6 +29,7 @@ add_library(rsz_lib
     DelayEstimator.cc
     DelayEstimatorReporter.cc
     LRSubproblem.cc
+    policy/SetupBottleneckPolicy.cc
     policy/SetupCritVtSwapPolicy.cc
     policy/SetupDirectionalPolicy.cc
     policy/SetupLastGaspPolicy.cc
