@@ -1,0 +1,164 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: gcd
+[INFO ODB-0130]     Created 54 pins.
+[INFO ODB-0131]     Created 571 components and 2554 component-terminals.
+[INFO ODB-0132]     Created 5 special nets and 1142 connections.
+[INFO ODB-0133]     Created 528 nets and 1412 connections.
+=== the swappable groups _847_ passes through ===
+The following 5 cells are equivalent to CLKBUF_X1:
+=============================================================================
+          Cell                              Area   Area Leakage  Leakage  VT
+                                           (um^2)  Ratio  (W)     Ratio  Type
+=============================================================================
+CLKBUF_X1                                   0.798  1.00 1.12e-08  1.00   -
+BUF_X1                                      0.798  1.00 2.14e-08  1.91   -
+CLKBUF_X2                                   1.064  1.33 2.29e-08  2.04   -
+BUF_X2                                      1.064  1.33 4.31e-08  3.84   -
+CLKBUF_X3                                   1.330  1.67 3.06e-08  2.72   -
+-----------------------------------------------------------------------------
+The following 6 cells are equivalent to CLKBUF_X3:
+=============================================================================
+          Cell                              Area   Area Leakage  Leakage  VT
+                                           (um^2)  Ratio  (W)     Ratio  Type
+=============================================================================
+CLKBUF_X1                                   0.798  0.60 1.12e-08  0.37   -
+BUF_X1                                      0.798  0.60 2.14e-08  0.70   -
+CLKBUF_X2                                   1.064  0.80 2.29e-08  0.75   -
+BUF_X2                                      1.064  0.80 4.31e-08  1.41   -
+CLKBUF_X3                                   1.330  1.00 3.06e-08  1.00   -
+BUF_X4                                      1.862  1.40 8.61e-08  2.82   -
+-----------------------------------------------------------------------------
+The following 7 cells are equivalent to BUF_X4:
+=============================================================================
+          Cell                              Area   Area Leakage  Leakage  VT
+                                           (um^2)  Ratio  (W)     Ratio  Type
+=============================================================================
+CLKBUF_X1                                   0.798  0.43 1.12e-08  0.13   -
+BUF_X1                                      0.798  0.43 2.14e-08  0.25   -
+CLKBUF_X2                                   1.064  0.57 2.29e-08  0.27   -
+BUF_X2                                      1.064  0.57 4.31e-08  0.50   -
+CLKBUF_X3                                   1.330  0.71 3.06e-08  0.35   -
+BUF_X4                                      1.862  1.00 8.61e-08  1.00   -
+BUF_X8                                      3.458  1.86 1.72e-07  2.00   -
+-----------------------------------------------------------------------------
+The following 9 cells are equivalent to BUF_X8:
+=============================================================================
+          Cell                              Area   Area Leakage  Leakage  VT
+                                           (um^2)  Ratio  (W)     Ratio  Type
+=============================================================================
+CLKBUF_X1                                   0.798  0.23 1.12e-08  0.07   -
+BUF_X1                                      0.798  0.23 2.14e-08  0.12   -
+CLKBUF_X2                                   1.064  0.31 2.29e-08  0.13   -
+BUF_X2                                      1.064  0.31 4.31e-08  0.25   -
+CLKBUF_X3                                   1.330  0.38 3.06e-08  0.18   -
+BUF_X4                                      1.862  0.54 8.61e-08  0.50   -
+BUF_X8                                      3.458  1.00 1.72e-07  1.00   -
+BUF_X16                                     6.650  1.92 3.44e-07  2.00   -
+BUF_X32                                    13.034  3.77 6.89e-07  4.00   -
+-----------------------------------------------------------------------------
+=== livramento_partial (cap_fix_pass=true) ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=livramento_partial init=min_size init_seed=0 seed=delay_proportional_crit_mu update=livramento_ratio mu_policy=endpoint_ratio mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=livramento_alpha term=pure_cap best=livramento_feasible | max_iter=6 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=false power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=true slew_fix_pass=false relax_max_cap=true
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 195/422 editable instances.
+[INFO RSZ-0460] GLOBAL_SIZING best solution: 0 of 6 iteration(s) had no setup, max capacitance or max slew violation; keeping the final iteration.
+[INFO RSZ-0400] GLOBAL_SIZING: 146 cells replaced (loop); 6/6 sweeps accepted, 0 rolled back; 146 replacements attempted in total (64 upsize, 82 downsize).
+[INFO RSZ-0459] GLOBAL_SIZING cap fix pass: 6 gate(s) over their max capacitance, summed over 6 sweep(s); 0 resized to clear it, 5 resized but still over it, 1 left as they were.
+[INFO RSZ-0464] GLOBAL_SIZING max-cap multipliers: beta0=1.51e-11 on 492 driver pin(s); 1 over their max capacitance at the start, 1 at the end.
+[INFO RSZ-0444] GLOBAL_SIZING timing_scale=livramento_alpha: terminal alpha=288.982 (alpha0=1, 6 reschedules); alpha_floor_bound=false (floor=1e-12).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 1.338 -> 1.186 (-0.153); TNS 0.0 -> 0.0 (0.0); leakage 1.55e-05 -> 1.24e-05W (-20.44%); area 7e-10 -> 6.54e-10m^2 (-6.65%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    -6.9% |    1.186 |        0.0 |        0.0 |      0 | _876_/D
+------------------------------------------------------------------------------------------------------------------------------
+_847_: BUF_X32
+=== livramento_partial -cap_fix_pass 0 ===
+*******************************************
+Global sizing config:
+-preset:                 livramento_partial
+-init_mode:              undefined
+-init_seed:              undefined
+-lambda_seed:            undefined
+-lambda_update:          undefined
+-mu_policy:              undefined
+-sweep_engine:           undefined
+-gs_refresh:             undefined
+-traversal:              undefined
+-downsize_guard:         undefined
+-move_set:               undefined
+-fast_olr_start_iter:    undefined
+-output_drc_veto:        undefined
+-timing_scale:           undefined
+-termination:            undefined
+-best_tracker:           undefined
+-include_clock_network:  undefined
+-size_registers:         undefined
+-power_objective:        undefined
+-power_phase_filter:     undefined
+-timing_cost:            undefined
+-setup_slack_margin:     undefined
+-max_iterations:         6
+-max_inner_sweeps:       undefined
+-restart_each_iteration: undefined
+-cap_fix_pass:           false
+-slew_fix_pass:          undefined
+-relax_max_cap:          undefined
+-beta:                   undefined
+-mu_exponent:            undefined
+-lambda_floor:           undefined
+-timing_bias:            undefined
+-budget_safety_factor:   undefined
+-upsize_hysteresis:      undefined
+-lambda_init_value:      undefined
+-lambda_seed_exponent:   undefined
+-est_loop_iters:         undefined
+-lambda_update_c:        undefined
+-flach_k_init:           undefined
+-flach_k_tns_small:      undefined
+-flach_k_final:          undefined
+-sharma_r:               undefined
+-sharma_k:               undefined
+-reimann_rho_init:       undefined
+-reimann_k:              undefined
+-reimann_setpoint:       undefined
+-livramento_alpha0:      undefined
+-cost_upstream_load:     undefined
+-cost_fanout_slew:       undefined
+-cost_global_phi:        undefined
+-cost_delta_delay:       undefined
+-gamma_local_slack:      undefined
+-stagnation_window:      undefined
+-stagnation_count:       undefined
+-stagnation_improve_frac: undefined
+-stagnation_require_tns: undefined
+-near_met_gate_frac:     undefined
+-term_tns_target_frac:   undefined
+-term_wns_target_frac:   undefined
+-term_tns_improve_frac:  undefined
+-term_power_improve_frac: undefined
+-term_improve_window:    undefined
+-term_wall_limit_s:      undefined
+-best_tns_target_frac:   undefined
+*******************************************
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=livramento_partial init=min_size init_seed=0 seed=delay_proportional_crit_mu update=livramento_ratio mu_policy=endpoint_ratio mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=livramento_alpha term=pure_cap best=livramento_feasible | max_iter=6 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=false power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=false slew_fix_pass=false relax_max_cap=true
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 195/422 editable instances.
+[INFO RSZ-0460] GLOBAL_SIZING best solution: 0 of 6 iteration(s) had no setup, max capacitance or max slew violation; keeping the final iteration.
+[INFO RSZ-0400] GLOBAL_SIZING: 146 cells replaced (loop); 6/6 sweeps accepted, 0 rolled back; 146 replacements attempted in total (64 upsize, 82 downsize).
+[INFO RSZ-0464] GLOBAL_SIZING max-cap multipliers: beta0=1.51e-11 on 492 driver pin(s); 1 over their max capacitance at the start, 1 at the end.
+[INFO RSZ-0444] GLOBAL_SIZING timing_scale=livramento_alpha: terminal alpha=288.982 (alpha0=1, 6 reschedules); alpha_floor_bound=false (floor=1e-12).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 1.338 -> 1.186 (-0.153); TNS 0.0 -> 0.0 (0.0); leakage 1.55e-05 -> 1.17e-05W (-25.03%); area 7e-10 -> 6.41e-10m^2 (-8.51%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    -8.9% |    1.186 |        0.0 |        0.0 |      0 | _876_/D
+------------------------------------------------------------------------------------------------------------------------------
+_847_: CLKBUF_X1
+=== a non-Boolean value is rejected ===
+[ERROR RSZ-0209] -cap_fix_pass argument should be Boolean
+=== reset clears -cap_fix_pass ===
+gs_cap_fix_pass cleared

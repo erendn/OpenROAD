@@ -458,36 +458,72 @@ global sizing driver. These options only affect
 `repair_timing -phases GLOBAL_SIZING`; they have no effect on other phases.
 Values persist on the block as dbProperties.
 
-Typical use sets only `-presize_mode` and `-include_clock_network`; the
+Typical use sets only `-init_mode` and `-include_clock_network`; the
 remaining options are LR-algorithm tuning hyperparameters that most users
 should leave at their defaults.
 
 ```tcl
 set_global_sizing_config
-    [-presize_mode mode]
+    [-preset name]
+    [-init_mode mode]
+    [-init_seed int_value]
+    [-lambda_update rule]
+    [-move_set set]
+    [-fast_olr_start_iter int_value]
+    [-output_drc_veto mode]
+    [-termination rule]
+    [-best_tracker rule]
     [-include_clock_network boolean_value]
+    [-size_registers boolean_value]
+    [-power_objective objective]
+    [-power_phase_filter boolean_value]
+    [-timing_cost cost]
     [-setup_slack_margin float_value]
     [-max_iterations int_value]
+    [-max_inner_sweeps int_value]
+    [-restart_each_iteration boolean_value]
+    [-cap_fix_pass boolean_value]
+    [-slew_fix_pass boolean_value]
+    [-relax_max_cap boolean_value]
     [-beta float_value]
     [-mu_exponent float_value]
     [-lambda_floor float_value]
     [-timing_bias float_value]
     [-budget_safety_factor float_value]
+    [-upsize_hysteresis float_value]
 ```
 
 #### Options
 
 | Switch Name | Description |
 | ----- | ----- |
-| `-presize_mode` | Pre-LR initialization. One of `disabled` (default), `min_size_max_vt` (replace every editable instance with its smallest-leakage equivalent), or `max_size_min_vt` (replace every editable instance with its largest-leakage equivalent). |
+| `-preset` | Named configuration that sets all algorithm options at once. `rsz_baseline` is OpenROAD's own configuration. `chen_partial`, `tennakoon_partial`, `flach_partial`, `sharma_seq_partial`, `reimann_partial`, `mangiras_partial`, `livramento_partial` and `chinnery_partial` follow published LR gate sizers; the `_partial` suffix means that the preset does not implement every component of the published method. Options given individually, in the same or a later call, override the preset. Without a preset, every option takes its own default. |
+| `-init_mode` | Initial solution applied before the LR loop: every editable instance is replaced by another member of its equivalent-cell group. The group is ranked by cell leakage (drive resistance breaks ties), so `min_size`, `max_size` and `average` refer to positions in that ranking. One of `as_given` (default; keep the incoming netlist), `min_size` (lowest-ranked member), `max_size` (highest-ranked member), `min_size_fixviol` (`min_size`, followed by an output-to-input repair pass that upsizes each gate violating max capacitance or max slew on its own outputs to the lowest-ranked member that clears the violation; a gate that no member can fix stays at minimum and is reported by RSZ-0445), `min_size_fixcap` (the same, but the repair checks only max capacitance; Sharma et al. (ICCAD 2015) repair slew in a separate pass, `-slew_fix_pass`), `random` (uniform draw per instance, seeded by `-init_seed`), or `average` (lower median of the ranking). `chen_partial` and `livramento_partial` use `min_size`, `flach_partial` uses `min_size_fixviol`, and `sharma_seq_partial` uses `min_size_fixcap`. |
+| `-init_seed` | Seed for `-init_mode random`. A non-negative integer; default 0. Ignored, with a warning, by the other modes. The draw for each instance depends only on the seed and the instance path name, so a seed gives the same initial netlist regardless of instance order or thread count. It is independent of the global placement seed. |
+| `-lambda_update` | Rule that updates the Lagrange multiplier of each timing arc after every LR iteration. `norm_subgradient` (default) is OpenROAD's own normalized subgradient step. The other rules follow published sizers: `flach_slack_scaling` (Flach et al., TCAD 2014), `chen_subgradient` (Chen et al., ICCAD 1998), `tennakoon_ratio` (Tennakoon and Sechen, ICCAD 2002), `sharma_cexp` (Sharma et al., ICCAD 2015), `reimann_dwns` (Reimann et al., ISPD 2016), `livramento_ratio` (Livramento et al., DATE 2013) and `sharma_arc_slack` (Sharma et al., TCAD 2020). `sharma_arc_slack` multiplies each arc's multiplier by (1 − s/T)^K, where s is the arc's own slack and T the clock period. With `-termination threshold_battery`, K is 4 on arcs with negative slack and 1 on the others during the timing phase, and 1 and 4 during the power phase, so the power phase quickly lowers the multipliers of arcs with positive slack. The update that ends the last timing-phase iteration still uses the timing-phase values. Under any other termination the run never leaves the timing phase, which is warned about. `chinnery_partial` uses `sharma_arc_slack`. |
+| `-move_set` | Which members of a gate's equivalent-cell group the per-gate LR subproblem evaluates. `full_library` (default) evaluates every member in every iteration. `sharma_fast_olr` (Sharma et al., ICCAD 2015, Fig. 9) evaluates every member until `-fast_olr_start_iter`, then switches to a local search: a hill descent through the sizes of the gate's current threshold-voltage flavor and its two neighboring flavors, stopping in each direction at the first step that does not improve the cost. `mangiras_size_step` (Mangiras and Dimitrakopoulos, Technologies 2021, Sec. 4.3) allows only a one-step size change up or down in every iteration, while threshold-voltage swaps stay unrestricted. Within a flavor, sizes are ranked by cell leakage, as for `-init_mode`. The restricted sets reduce runtime and limit how far a gate moves in one iteration, but they can miss a cell that the full scan would find. `sharma_seq_partial` and `mangiras_partial` use their matching restricted set; the other presets use `full_library`. |
+| `-fast_olr_start_iter` | Iteration at which `-move_set sharma_fast_olr` switches to the local search. Iterations are counted from 1 over the iterations that update the multipliers; 0 also includes the initial sweep before the first update. A non-negative integer; default 5, so the first four iterations evaluate every cell, as in the paper. Ignored, with a warning, by the other move sets. |
+| `-output_drc_veto` | How the max capacitance / max slew candidate filter treats an output pin that the gate's current cell already violates. `absolute` (default) rejects every candidate that exceeds its own limits; if no cell in the group can clear the pin, the gate keeps its current cell. `relative` rejects only a candidate that makes the existing violation worse; an equal violation is accepted, and a pin without a violation gets the absolute check. With either setting, a candidate cannot create a new violation at the load seen when its gate is evaluated. That load can still change when neighboring gates are resized in the same sweep: a max capacitance check after each sweep reverts such moves (RSZ-0443), but there is no equivalent check for max slew. With `-relax_max_cap`, the filter and that check leave max capacitance to the cost on the pins that have a multiplier. Neither setting repairs violations the design already has. `absolute` removes some of them, because on a violating pin it accepts only candidates that clear it, while `relative` generally keeps them. Check the result with `report_check_types -max_capacitance -max_slew`. The input side of the filter always uses the relative rule. `flach_partial` and `chinnery_partial` use `relative`, as their papers do. |
+| `-termination` | LR stop rule. Every rule also stops at `-max_iterations`. `fixed_iters` (default) also stops after 3 consecutive iterations that worsened the worst slack or 2 consecutive iterations that changed nothing. `stagnation_windows` stops when power (and optionally TNS) stops improving. `threshold_battery` runs a timing phase followed by a power phase, each with its own stop thresholds. `pure_cap` stops only at `-max_iterations`. No rule stops just because timing is met: global sizing minimizes power subject to timing, so it also runs on designs that already meet timing. |
+| `-best_tracker` | Which iteration's cells global sizing returns. The iterations do not improve steadily, so most rules remember the best iteration and put its cells back after the last one. `flach_dominance` (default; Flach et al., TCAD 2014) returns the lowest-power iteration whose total negative slack is within 10% of the clock period (`-best_tns_target_frac`). `reimann_score` (Reimann et al., ISPD 2016) scores each iteration by its changes in power, area, total negative slack and worst slack against the netlist global sizing received, and returns the best one, or that netlist if no iteration scores higher. `livramento_feasible` (Livramento et al., DATE 2013) returns the lowest-power iteration that has no setup violation and no max capacitance or max slew violation, as `report_check_types` counts them; if there is none, the final iteration is kept. RSZ-0460 reports how many iterations had no violation and which one was returned. `wns_pass_reject` keeps the cells of the last iteration that did not make the worst slack worse, whose worst slack matched or beat the best so far (starting from the worst slack before the first iteration), and that left the design within its maximum area; the changes after that iteration are undone, and if no iteration qualifies, all changes of the iterations are undone. `none` keeps the final iteration. Power is measured as `-power_objective` sets. `rsz_baseline` sets `wns_pass_reject`; `chen_partial`, `tennakoon_partial` and `chinnery_partial` set `none`; `reimann_partial` sets `reimann_score`; `livramento_partial` sets `livramento_feasible`; the other presets keep `flach_dominance`. |
 | `-include_clock_network` | If true, allow global sizing to size clock network instances. Default false (clock instances are excluded). |
-| `-setup_slack_margin` | WNS target for the LR convergence check. Default 0.0. |
+| `-size_registers` | If false, global sizing never changes the cell of a register (a flip-flop, latch or other sequential cell), neither in the initial solution set by `-init_mode` nor in the LR iterations. Default true. All paper presets set false, because none of the published sizers resizes registers; `rsz_baseline` keeps the default. |
+| `-power_objective` | The power global sizing minimizes. `leakage` (default) is the leakage of each cell. `total` adds each cell's internal power and the switching power its input pins add to the nets that drive them. The power of the cell's own output net is left out, because it does not depend on which cell the gate takes. Internal power is read at the same input slew and load as the cell's delay. Switching activity comes from OpenSTA, as `report_power` uses it: the activity set by the user (for example with `set_power_activity` or `read_vcd`), and elsewhere OpenSTA's estimate propagated from the inputs and clocks. It is read once, before global sizing changes any cell, because resizing a gate to an equivalent cell does not change its logic function. With `total`, the stop rules and best-solution choices that compare the design's power between iterations (`-termination stagnation_windows` and `threshold_battery`, `-best_tracker flach_dominance`, `reimann_score` and `livramento_feasible`) compare total power too. `reimann_partial` and `chinnery_partial` set `total`, because their papers minimize total power. |
+| `-power_phase_filter` | If true, during the power phase of `-termination threshold_battery` the LR subproblem skips every candidate cell whose power, as `-power_objective` measures it, is above the current cell's, so a gate can only keep or lower its power (Chinnery and Sharma, ISPD 2022, Table 2). Under any other termination it has no effect, which is warned about. Default false; `chinnery_partial` sets true. |
+| `-timing_cost` | How each gate's cost prices the timing arcs that end at one output pin, each weighted by its own Lagrange multiplier. `worst_arc` (default) prices every arc at the delay of the slowest one, which needs one delay lookup per pin but overprices the faster arcs of a gate with several inputs. `per_arc` prices each arc at its own delay, as the published LR sizers do; it needs one delay lookup per arc, so global sizing runs longer. The setting applies wherever the cost prices arc delays: the gate's own arcs, the arcs of the gates that drive its inputs, and the median gate cost that `-timing_bias` is scaled against. When two cells of a group split an arc's `when` conditions differently, `per_arc` prices the arc at the slowest arc between the same two pins. No preset sets `per_arc`. |
+| `-setup_slack_margin` | Slack target used inside the LR loop. It enters the per-gate downsize budget (`slack − margin`), the endpoint μ seed and the slack references of the λ updates. Default 0.0. Reaching the target does not stop the loop. |
 | `-max_iterations` | Maximum LR outer-loop iterations. Default 20. |
+| `-max_inner_sweeps` | Maximum number of sweeps in one LR iteration. After each multiplier update, global sizing repeats the sweep over all gates with the multipliers held fixed, updating timing after each sweep, until a sweep changes no gate or this many sweeps have run. A sweep whose changes were all undone by the max capacitance check after the sweep (RSZ-0443) counts as changing nothing. This follows Chen et al. (ICCAD 1998) and Tennakoon and Sechen (ICCAD 2002), who repeat until nothing improves; the cap is needed because with discrete cells two gates can keep swapping back and forth. The stop rules, the best-solution choices and the worst-slack check still run once per iteration. With a value above 1, RSZ-0455 reports the total number of sweeps and how many iterations stopped at the cap. An integer of at least 1; default 1 (one sweep per iteration). `chen_partial` and `tennakoon_partial` set 10. |
+| `-restart_each_iteration` | If true, at the start of every LR iteration after the first, after the multiplier update, global sizing sets every gate back to the cell it had right after the initial solution (`-init_mode`), so every iteration sizes the design from the same starting cells. This follows Chen et al. (ICCAD 1998), who solve every subproblem starting from the minimum sizes. Their continuous solver reaches the same solution from any start, but sweeps over discrete cells do not, so use it with `-max_inner_sweeps` above 1, which lets each iteration rebuild the sizes the restart discards; with `-max_inner_sweeps 1` it is warned about (RSZ-0457). The cells after the last iteration are the result, unless `-best_tracker` picks an earlier iteration. RSZ-0400 counts the cell changes of every iteration, including those a later restart sets back. Default false; `chen_partial` sets true, with `-init_mode min_size` and `-max_inner_sweeps 10`. |
+| `-cap_fix_pass` | If true, after every sweep global sizing visits the gates from outputs to inputs and resizes each gate whose output load is above the max capacitance of its cell, as Livramento et al. (DATE 2013, Alg. 3) do after every iteration. It chooses among the cells of the gate's equivalent-cell group that have the gate's threshold-voltage flavor. Of the cells that bring the load within their limit, it takes the one with the lowest LR cost: the cell's power plus the delays of its own timing arcs, weighted by their Lagrange multipliers and priced as `-timing_cost` sets, plus, with `-relax_max_cap`, the max capacitance term of its own output pins. If no cell does, it takes the one that exceeds its limit by the least, which can be the current cell. The cells it tries are those the LR iterations may swap the gate to, which the resizer limits relative to the gate's current cell, so a gate far over its limit can take several sweeps to reach the largest cell. Only max capacitance is repaired, and only against the limit in the Liberty library; a limit set with `set_max_capacitance` alone is not seen. A larger cell adds load to the gates that drive it; the pass visits those gates afterwards. The changes are not counted as sweep moves in RSZ-0400; RSZ-0459 reports how many gates the pass found over their limit and what it did with them. Default false; `livramento_partial` sets true. |
+| `-slew_fix_pass` | If true, once before the first LR iteration, after the initial solution set by `-init_mode`, global sizing visits the gates from inputs to outputs and upsizes each gate whose output slew is above its limit, as Sharma et al. (ICCAD 2015, Sec. III-A) do after their capacitance repair. Inputs go first because a gate's slew depends on the slew of the gates that drive it, which the pass has then already repaired. It chooses among the larger cells of the gate's equivalent-cell group that have the gate's threshold-voltage flavor, and skips any cell whose input capacitance would push a gate that drives it over its max capacitance, or add load to a driver already over it. This driver check is the one the LR iterations apply, so it uses the limit OpenSTA checks, which includes a `set_max_capacitance`. Of the cells that bring the slew within the limit, it takes the one with the lowest leakage. If no cell does, it takes the one closest to the limit, or keeps the current cell if none is closer. A cell's slew is estimated from the gate's measured slew, scaled by the cell's drive resistance, as the LR iterations do. The pass does not revisit a gate, so a later upsize in a gate's fanout can raise that gate's slew again. RSZ-0461 reports how many gates were over their slew limit and what the pass did with them. Default false; `sharma_seq_partial` sets true, with `-init_mode min_size_fixcap`. |
+| `-relax_max_cap` | If true, global sizing prices max capacitance instead of forbidding it, as Livramento et al. (DATE 2013, Eq. 3) do. Each output pin of a gate that global sizing may resize gets a Lagrange multiplier (β in the paper, unrelated to `-beta`), if its cell has a max capacitance in the Liberty library. Registers get one even under `-size_registers 0`, as the paper prices the primary inputs of its circuit model. Such a register is not resized, so neither the fix pass nor the check after each sweep repairs it: only the cells that load it, priced by its multiplier, can bring it back within its limit, as in the paper, whose fix pass resizes gates only. A candidate cell then adds β × (load − limit) to its cost on its own output pins, at its own limit, and on the output pins of the gates that drive its inputs, at a load that includes its input capacitance. A pin below its limit earns a credit. The term is weighted by the same timing weight as the delays. On a pin that has a multiplier, the LR iterations no longer reject a cell for exceeding a max capacitance, and the max capacitance check after each sweep (RSZ-0443) no longer undoes moves. A pin without a multiplier keeps both checks: a primary input, or the output of another gate that global sizing does not resize, such as a dont-touch cell, a macro, or a clock-network gate without `-include_clock_network`. Max slew keeps its check. Every β starts small: in the first sweep, an excess equal to the median limit costs 1% of the median gate's power. Because a pin below its limit earns a credit, a larger start would make the first sweep upsize gates for that credit alone. After every LR iteration, together with the timing multipliers, each β is multiplied by the pin's load divided by its cell's limit, so it grows while the pin is over its limit and shrinks while it is below it. Only the limits in the Liberty library are priced; a limit set with `set_max_capacitance` alone is not seen. With `-cap_fix_pass`, the fix pass adds the gate's own term to the cost it compares cells by. A pin below its limit can make a gate's cost negative, and `-upsize_hysteresis` then no longer holds back an upsize of that gate, which RSZ-0465 warns about. RSZ-0464 reports the initial β, the number of pins with a multiplier, and how many of them were over their limit at the start and at the end of the run. Default false; `livramento_partial` sets true. |
 | `-beta` | Step size α for the dual-subgradient update on λ. Default 0.6. |
 | `-mu_exponent` | Endpoint seed exponent for μ. Default 2.0. |
 | `-lambda_floor` | Floor on per-edge multipliers so unused arcs can re-enter. Default 1e-12. |
-| `-timing_bias` | Dimensionless balance between timing pressure and leakage cost. Default 64.0. |
+| `-timing_bias` | Dimensionless balance between timing pressure and power cost. Default 64.0. |
 | `-budget_safety_factor` | Safety derate (≤ 1) on the per-gate distributed downsize budget. Default 1.0. |
+| `-upsize_hysteresis` | Relative LR cost improvement an upsize must exceed to be accepted; downsizes are accepted on any improvement. This filters out moves caused by cost noise that would change the design without a real timing gain. Default 0.02. The paper presets set 0.0 and take the lowest-cost candidate. |
 
 ### Reporting Global Sizing Configuration
 
@@ -508,15 +544,33 @@ policy's built-in defaults.
 
 ```tcl
 reset_global_sizing_config
-    [-presize_mode]
+    [-preset]
+    [-init_mode]
+    [-init_seed]
+    [-lambda_update]
+    [-move_set]
+    [-fast_olr_start_iter]
+    [-output_drc_veto]
+    [-termination]
+    [-best_tracker]
     [-include_clock_network]
+    [-size_registers]
+    [-power_objective]
+    [-power_phase_filter]
+    [-timing_cost]
     [-setup_slack_margin]
     [-max_iterations]
+    [-max_inner_sweeps]
+    [-restart_each_iteration]
+    [-cap_fix_pass]
+    [-slew_fix_pass]
+    [-relax_max_cap]
     [-beta]
     [-mu_exponent]
     [-lambda_floor]
     [-timing_bias]
     [-budget_safety_factor]
+    [-upsize_hysteresis]
 ```
 
 ### Finding Equivalent Cells

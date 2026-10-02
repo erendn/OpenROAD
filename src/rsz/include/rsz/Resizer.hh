@@ -744,6 +744,15 @@ class Resizer : public sta::dbStaState, public sta::dbNetworkObserver
                           float load_cap,
                           const sta::Scene* scene,
                           const sta::MinMax* min_max);
+  // Worst rise/fall delay over the arcs of one timing arc set at load_cap,
+  // with the same input slews as gateDelays. gateDelay takes the worst over
+  // every arc set into the output port instead. Worker-safe with a per-thread
+  // arc_delay_calc.
+  sta::ArcDelay arcSetDelay(const sta::TimingArcSet* arc_set,
+                            float load_cap,
+                            const sta::Scene* scene,
+                            const sta::MinMax* min_max,
+                            sta::ArcDelayCalc* arc_delay_calc);
   float bufferDelay(sta::LibertyCell* buffer_cell,
                     float load_cap,
                     const sta::Scene* scene,

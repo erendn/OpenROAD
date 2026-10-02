@@ -804,29 +804,193 @@ proc report_opt_config { args } {
 # `repair_timing -phases GLOBAL_SIZING` policy; values persist as dbProperties
 # on the block (gs_* names on disk).
 sta::define_cmd_args "set_global_sizing_config" { \
-    [-presize_mode mode] \
+    [-preset preset] \
+    [-init_mode mode] \
+    [-init_seed seed] \
+    [-lambda_seed rule] \
+    [-lambda_update rule] \
+    [-mu_policy policy] \
+    [-sweep_engine engine] \
+    [-gs_refresh mode] \
+    [-traversal order] \
+    [-downsize_guard guard] \
+    [-move_set set] \
+    [-fast_olr_start_iter value] \
+    [-output_drc_veto mode] \
+    [-timing_scale scale] \
+    [-termination rule] \
+    [-best_tracker rule] \
     [-include_clock_network bool] \
+    [-size_registers bool] \
+    [-power_objective objective] \
+    [-power_phase_filter bool] \
+    [-timing_cost cost] \
     [-setup_slack_margin margin] \
     [-max_iterations iterations] \
+    [-max_inner_sweeps value] \
+    [-restart_each_iteration bool] \
+    [-cap_fix_pass bool] \
+    [-slew_fix_pass bool] \
+    [-relax_max_cap bool] \
     [-beta value] \
     [-mu_exponent value] \
     [-lambda_floor value] \
     [-timing_bias value] \
-    [-budget_safety_factor value] }
+    [-budget_safety_factor value] \
+    [-upsize_hysteresis value] \
+    [-lambda_init_value value] \
+    [-lambda_seed_exponent value] \
+    [-est_loop_iters value] \
+    [-lambda_update_c value] \
+    [-flach_k_init value] \
+    [-flach_k_tns_small value] \
+    [-flach_k_final value] \
+    [-sharma_r value] \
+    [-sharma_k value] \
+    [-reimann_rho_init value] \
+    [-reimann_k value] \
+    [-reimann_setpoint setpoint] \
+    [-livramento_alpha0 value] \
+    [-cost_upstream_load bool] \
+    [-cost_fanout_slew bool] \
+    [-cost_global_phi bool] \
+    [-cost_delta_delay bool] \
+    [-gamma_local_slack value] \
+    [-stagnation_window value] \
+    [-stagnation_count value] \
+    [-stagnation_improve_frac value] \
+    [-stagnation_require_tns bool] \
+    [-near_met_gate_frac value] \
+    [-term_tns_target_frac value] \
+    [-term_wns_target_frac value] \
+    [-term_tns_improve_frac value] \
+    [-term_power_improve_frac value] \
+    [-term_improve_window value] \
+    [-term_wall_limit_s value] \
+    [-best_tns_target_frac value] }
 
+# A preset sets every option of the LR sizer; an individual option given in
+# the same or a later call overrides it. See GlobalSizingConfig.hh.
+#
+# rsz_baseline is OpenROAD's own sizer. The other presets follow published LR
+# sizers and are named <paper>_partial because none of them implements the
+# complete published method; GlobalSizingConfig.cc lists what each one omits.
 proc set_global_sizing_config { args } {
   sta::parse_key_args "set_global_sizing_config" args \
-    keys {-presize_mode -include_clock_network -setup_slack_margin \
-            -max_iterations -beta -mu_exponent -lambda_floor -timing_bias \
-            -budget_safety_factor} flags {}
+    keys {-preset -init_mode -init_seed -lambda_seed -lambda_update -mu_policy \
+            -sweep_engine -gs_refresh -traversal -downsize_guard \
+            -move_set -fast_olr_start_iter -output_drc_veto \
+            -timing_scale -termination -best_tracker \
+            -include_clock_network -size_registers -power_objective \
+            -power_phase_filter -timing_cost -setup_slack_margin \
+            -max_iterations -max_inner_sweeps -restart_each_iteration \
+            -cap_fix_pass -slew_fix_pass -relax_max_cap -beta -mu_exponent \
+            -lambda_floor -timing_bias -budget_safety_factor -upsize_hysteresis \
+            -lambda_init_value -lambda_seed_exponent \
+            -est_loop_iters -lambda_update_c -flach_k_init \
+            -flach_k_tns_small -flach_k_final -sharma_r -sharma_k \
+            -reimann_rho_init -reimann_k -reimann_setpoint -livramento_alpha0 \
+            -cost_upstream_load \
+            -cost_fanout_slew -cost_global_phi -cost_delta_delay \
+            -gamma_local_slack -stagnation_window -stagnation_count \
+            -stagnation_improve_frac -stagnation_require_tns \
+            -near_met_gate_frac \
+            -term_tns_target_frac -term_wns_target_frac \
+            -term_tns_improve_frac -term_power_improve_frac \
+            -term_improve_window -term_wall_limit_s \
+            -best_tns_target_frac} flags {}
 
-  if { [info exists keys(-presize_mode)] } {
-    rsz::set_string_prop $keys(-presize_mode) "-presize_mode" \
-      "gs_presize_mode" {disabled min_size_max_vt max_size_min_vt}
+  if { [info exists keys(-preset)] } {
+    rsz::set_string_prop $keys(-preset) "-preset" \
+      "gs_preset" {rsz_baseline chen_partial tennakoon_partial flach_partial \
+                     sharma_seq_partial reimann_partial mangiras_partial \
+                     livramento_partial chinnery_partial}
+  }
+  if { [info exists keys(-init_mode)] } {
+    rsz::set_string_prop $keys(-init_mode) "-init_mode" \
+      "gs_init_mode" {as_given min_size max_size min_size_fixviol
+                        min_size_fixcap random average}
+  }
+  if { [info exists keys(-init_seed)] } {
+    rsz::set_positive_int_prop $keys(-init_seed) \
+      "-init_seed" "gs_init_seed"
+  }
+  if { [info exists keys(-lambda_seed)] } {
+    rsz::set_string_prop $keys(-lambda_seed) "-lambda_seed" \
+      "gs_lambda_seed" {delay_proportional_crit_mu constant state_adaptive \
+                          estimation_loop}
+  }
+  if { [info exists keys(-lambda_update)] } {
+    rsz::set_string_prop $keys(-lambda_update) "-lambda_update" \
+      "gs_lambda_update" {norm_subgradient flach_slack_scaling \
+                            chen_subgradient tennakoon_ratio sharma_cexp \
+                            reimann_dwns livramento_ratio sharma_arc_slack}
+  }
+  if { [info exists keys(-mu_policy)] } {
+    rsz::set_string_prop $keys(-mu_policy) "-mu_policy" \
+      "gs_mu_policy" {reseed_each_iter seed_once update_as_lambda endpoint_lambda \
+                        endpoint_ratio endpoint_additive}
+  }
+  if { [info exists keys(-sweep_engine)] } {
+    rsz::set_string_prop $keys(-sweep_engine) "-sweep_engine" \
+      "gs_sweep_engine" {jacobi_snapshot gauss_seidel_topo}
+  }
+  if { [info exists keys(-gs_refresh)] } {
+    rsz::set_string_prop $keys(-gs_refresh) "-gs_refresh" \
+      "gs_gs_refresh" {gs_local gs_incremental}
+  }
+  if { [info exists keys(-traversal)] } {
+    rsz::set_string_prop $keys(-traversal) "-traversal" \
+      "gs_traversal" {forward_topo reverse_topo criticality_sorted}
+  }
+  if { [info exists keys(-downsize_guard)] } {
+    rsz::set_string_prop $keys(-downsize_guard) "-downsize_guard" \
+      "gs_downsize_guard" {depth_budget local_slack_veto none}
+  }
+  if { [info exists keys(-move_set)] } {
+    rsz::set_string_prop $keys(-move_set) "-move_set" \
+      "gs_move_set" {full_library sharma_fast_olr mangiras_size_step}
+  }
+  if { [info exists keys(-fast_olr_start_iter)] } {
+    rsz::set_positive_int_prop $keys(-fast_olr_start_iter) \
+      "-fast_olr_start_iter" "gs_fast_olr_start_iter"
+  }
+  if { [info exists keys(-output_drc_veto)] } {
+    rsz::set_string_prop $keys(-output_drc_veto) "-output_drc_veto" \
+      "gs_output_drc_veto" {absolute relative}
+  }
+  if { [info exists keys(-timing_scale)] } {
+    rsz::set_string_prop $keys(-timing_scale) "-timing_scale" \
+      "gs_timing_scale" {auto_median unit livramento_alpha}
+  }
+  if { [info exists keys(-termination)] } {
+    rsz::set_string_prop $keys(-termination) "-termination" \
+      "gs_termination" {fixed_iters stagnation_windows threshold_battery pure_cap}
+  }
+  if { [info exists keys(-best_tracker)] } {
+    rsz::set_string_prop $keys(-best_tracker) "-best_tracker" \
+      "gs_best_tracker" {none flach_dominance reimann_score wns_pass_reject \
+                           livramento_feasible}
   }
   if { [info exists keys(-include_clock_network)] } {
     rsz::set_boolean_prop $keys(-include_clock_network) \
       "-include_clock_network" "gs_include_clock_network"
+  }
+  if { [info exists keys(-size_registers)] } {
+    rsz::set_boolean_prop $keys(-size_registers) \
+      "-size_registers" "gs_size_registers"
+  }
+  if { [info exists keys(-power_objective)] } {
+    rsz::set_string_prop $keys(-power_objective) "-power_objective" \
+      "gs_power_objective" {leakage total}
+  }
+  if { [info exists keys(-power_phase_filter)] } {
+    rsz::set_boolean_prop $keys(-power_phase_filter) \
+      "-power_phase_filter" "gs_power_phase_filter"
+  }
+  if { [info exists keys(-timing_cost)] } {
+    rsz::set_string_prop $keys(-timing_cost) "-timing_cost" \
+      "gs_timing_cost" {worst_arc per_arc}
   }
   if { [info exists keys(-setup_slack_margin)] } {
     rsz::set_double_prop $keys(-setup_slack_margin) \
@@ -835,6 +999,26 @@ proc set_global_sizing_config { args } {
   if { [info exists keys(-max_iterations)] } {
     rsz::set_positive_int_prop $keys(-max_iterations) \
       "-max_iterations" "gs_max_iterations"
+  }
+  if { [info exists keys(-max_inner_sweeps)] } {
+    rsz::set_positive_int_prop $keys(-max_inner_sweeps) \
+      "-max_inner_sweeps" "gs_max_inner_sweeps"
+  }
+  if { [info exists keys(-restart_each_iteration)] } {
+    rsz::set_boolean_prop $keys(-restart_each_iteration) \
+      "-restart_each_iteration" "gs_restart_each_iteration"
+  }
+  if { [info exists keys(-cap_fix_pass)] } {
+    rsz::set_boolean_prop $keys(-cap_fix_pass) "-cap_fix_pass" \
+      "gs_cap_fix_pass"
+  }
+  if { [info exists keys(-slew_fix_pass)] } {
+    rsz::set_boolean_prop $keys(-slew_fix_pass) "-slew_fix_pass" \
+      "gs_slew_fix_pass"
+  }
+  if { [info exists keys(-relax_max_cap)] } {
+    rsz::set_boolean_prop $keys(-relax_max_cap) "-relax_max_cap" \
+      "gs_relax_max_cap"
   }
   if { [info exists keys(-beta)] } {
     rsz::set_positive_double_prop $keys(-beta) "-beta" "gs_beta"
@@ -855,37 +1039,286 @@ proc set_global_sizing_config { args } {
     rsz::set_positive_double_prop $keys(-budget_safety_factor) \
       "-budget_safety_factor" "gs_budget_safety_factor"
   }
+  if { [info exists keys(-upsize_hysteresis)] } {
+    rsz::set_positive_double_prop $keys(-upsize_hysteresis) \
+      "-upsize_hysteresis" "gs_upsize_hysteresis"
+  }
+  if { [info exists keys(-lambda_init_value)] } {
+    rsz::set_positive_double_prop $keys(-lambda_init_value) \
+      "-lambda_init_value" "gs_lambda_init_value"
+  }
+  if { [info exists keys(-lambda_seed_exponent)] } {
+    rsz::set_positive_double_prop $keys(-lambda_seed_exponent) \
+      "-lambda_seed_exponent" "gs_lambda_seed_exponent"
+  }
+  if { [info exists keys(-est_loop_iters)] } {
+    rsz::set_positive_int_prop $keys(-est_loop_iters) \
+      "-est_loop_iters" "gs_est_loop_iters"
+  }
+  if { [info exists keys(-lambda_update_c)] } {
+    rsz::set_positive_double_prop $keys(-lambda_update_c) \
+      "-lambda_update_c" "gs_lambda_update_c"
+  }
+  if { [info exists keys(-flach_k_init)] } {
+    rsz::set_positive_double_prop $keys(-flach_k_init) \
+      "-flach_k_init" "gs_flach_k_init"
+  }
+  if { [info exists keys(-flach_k_tns_small)] } {
+    rsz::set_positive_double_prop $keys(-flach_k_tns_small) \
+      "-flach_k_tns_small" "gs_flach_k_tns_small"
+  }
+  if { [info exists keys(-flach_k_final)] } {
+    rsz::set_positive_double_prop $keys(-flach_k_final) \
+      "-flach_k_final" "gs_flach_k_final"
+  }
+  if { [info exists keys(-sharma_r)] } {
+    rsz::set_positive_double_prop $keys(-sharma_r) "-sharma_r" "gs_sharma_r"
+  }
+  if { [info exists keys(-sharma_k)] } {
+    rsz::set_positive_double_prop $keys(-sharma_k) "-sharma_k" "gs_sharma_k"
+  }
+  if { [info exists keys(-reimann_rho_init)] } {
+    rsz::set_positive_double_prop $keys(-reimann_rho_init) \
+      "-reimann_rho_init" "gs_reimann_rho_init"
+  }
+  if { [info exists keys(-reimann_k)] } {
+    rsz::set_positive_double_prop $keys(-reimann_k) \
+      "-reimann_k" "gs_reimann_k"
+  }
+  if { [info exists keys(-reimann_setpoint)] } {
+    rsz::set_string_prop $keys(-reimann_setpoint) "-reimann_setpoint" \
+      "gs_reimann_setpoint" {s_init slack_target}
+  }
+  if { [info exists keys(-livramento_alpha0)] } {
+    rsz::set_positive_double_prop $keys(-livramento_alpha0) \
+      "-livramento_alpha0" "gs_livramento_alpha0"
+  }
+  if { [info exists keys(-cost_upstream_load)] } {
+    rsz::set_boolean_prop $keys(-cost_upstream_load) \
+      "-cost_upstream_load" "gs_cost_upstream_load"
+  }
+  if { [info exists keys(-cost_fanout_slew)] } {
+    rsz::set_boolean_prop $keys(-cost_fanout_slew) \
+      "-cost_fanout_slew" "gs_cost_fanout_slew"
+  }
+  if { [info exists keys(-cost_global_phi)] } {
+    rsz::set_boolean_prop $keys(-cost_global_phi) \
+      "-cost_global_phi" "gs_cost_global_phi"
+  }
+  if { [info exists keys(-cost_delta_delay)] } {
+    rsz::set_boolean_prop $keys(-cost_delta_delay) \
+      "-cost_delta_delay" "gs_cost_delta_delay"
+  }
+  if { [info exists keys(-gamma_local_slack)] } {
+    rsz::set_positive_double_prop $keys(-gamma_local_slack) \
+      "-gamma_local_slack" "gs_gamma_local_slack"
+  }
+  if { [info exists keys(-stagnation_window)] } {
+    rsz::set_positive_int_prop $keys(-stagnation_window) \
+      "-stagnation_window" "gs_stagnation_window"
+  }
+  if { [info exists keys(-stagnation_count)] } {
+    rsz::set_positive_int_prop $keys(-stagnation_count) \
+      "-stagnation_count" "gs_stagnation_count"
+  }
+  if { [info exists keys(-stagnation_improve_frac)] } {
+    rsz::set_positive_double_prop $keys(-stagnation_improve_frac) \
+      "-stagnation_improve_frac" "gs_stagnation_improve_frac"
+  }
+  if { [info exists keys(-stagnation_require_tns)] } {
+    rsz::set_boolean_prop $keys(-stagnation_require_tns) \
+      "-stagnation_require_tns" "gs_stagnation_require_tns"
+  }
+  if { [info exists keys(-near_met_gate_frac)] } {
+    rsz::set_positive_double_prop $keys(-near_met_gate_frac) \
+      "-near_met_gate_frac" "gs_near_met_gate_frac"
+  }
+  if { [info exists keys(-term_tns_target_frac)] } {
+    rsz::set_positive_double_prop $keys(-term_tns_target_frac) \
+      "-term_tns_target_frac" "gs_term_tns_target_frac"
+  }
+  if { [info exists keys(-term_wns_target_frac)] } {
+    rsz::set_positive_double_prop $keys(-term_wns_target_frac) \
+      "-term_wns_target_frac" "gs_term_wns_target_frac"
+  }
+  if { [info exists keys(-term_tns_improve_frac)] } {
+    rsz::set_positive_double_prop $keys(-term_tns_improve_frac) \
+      "-term_tns_improve_frac" "gs_term_tns_improve_frac"
+  }
+  if { [info exists keys(-term_power_improve_frac)] } {
+    rsz::set_positive_double_prop $keys(-term_power_improve_frac) \
+      "-term_power_improve_frac" "gs_term_power_improve_frac"
+  }
+  if { [info exists keys(-term_improve_window)] } {
+    rsz::set_positive_int_prop $keys(-term_improve_window) \
+      "-term_improve_window" "gs_term_improve_window"
+  }
+  if { [info exists keys(-term_wall_limit_s)] } {
+    rsz::set_positive_double_prop $keys(-term_wall_limit_s) \
+      "-term_wall_limit_s" "gs_term_wall_limit_s"
+  }
+  if { [info exists keys(-best_tns_target_frac)] } {
+    rsz::set_positive_double_prop $keys(-best_tns_target_frac) \
+      "-best_tns_target_frac" "gs_best_tns_target_frac"
+  }
 }
 
 sta::define_cmd_args "reset_global_sizing_config" { \
-    [-presize_mode] \
+    [-preset] \
+    [-init_mode] \
+    [-init_seed] \
+    [-lambda_seed] \
+    [-lambda_update] \
+    [-mu_policy] \
+    [-sweep_engine] \
+    [-gs_refresh] \
+    [-traversal] \
+    [-downsize_guard] \
+    [-move_set] \
+    [-fast_olr_start_iter] \
+    [-output_drc_veto] \
+    [-timing_scale] \
+    [-termination] \
+    [-best_tracker] \
     [-include_clock_network] \
+    [-size_registers] \
+    [-power_objective] \
+    [-power_phase_filter] \
+    [-timing_cost] \
     [-setup_slack_margin] \
     [-max_iterations] \
+    [-max_inner_sweeps] \
+    [-restart_each_iteration] \
+    [-cap_fix_pass] \
+    [-slew_fix_pass] \
+    [-relax_max_cap] \
     [-beta] \
     [-mu_exponent] \
     [-lambda_floor] \
     [-timing_bias] \
-    [-budget_safety_factor] }
+    [-budget_safety_factor] \
+    [-upsize_hysteresis] \
+    [-lambda_init_value] \
+    [-lambda_seed_exponent] \
+    [-est_loop_iters] \
+    [-lambda_update_c] \
+    [-flach_k_init] \
+    [-flach_k_tns_small] \
+    [-flach_k_final] \
+    [-sharma_r] \
+    [-sharma_k] \
+    [-reimann_rho_init] \
+    [-reimann_k] \
+    [-reimann_setpoint] \
+    [-livramento_alpha0] \
+    [-cost_upstream_load] \
+    [-cost_fanout_slew] \
+    [-cost_global_phi] \
+    [-cost_delta_delay] \
+    [-gamma_local_slack] \
+    [-stagnation_window] \
+    [-stagnation_count] \
+    [-stagnation_improve_frac] \
+    [-stagnation_require_tns] \
+    [-near_met_gate_frac] \
+    [-term_tns_target_frac] \
+    [-term_wns_target_frac] \
+    [-term_tns_improve_frac] \
+    [-term_power_improve_frac] \
+    [-term_improve_window] \
+    [-term_wall_limit_s] \
+    [-best_tns_target_frac] }
 
 proc reset_global_sizing_config { args } {
   sta::parse_key_args "reset_global_sizing_config" args \
-    keys {} flags {-presize_mode -include_clock_network -setup_slack_margin \
-                     -max_iterations -beta -mu_exponent -lambda_floor \
-                     -timing_bias -budget_safety_factor}
+    keys {} flags {-preset -init_mode -init_seed -lambda_seed -lambda_update \
+                     -mu_policy \
+                     -sweep_engine -gs_refresh -traversal -downsize_guard \
+                     -move_set -fast_olr_start_iter -output_drc_veto \
+                     -timing_scale -termination -best_tracker \
+                     -include_clock_network -size_registers \
+                     -power_objective -power_phase_filter -timing_cost \
+                     -setup_slack_margin -max_iterations -max_inner_sweeps \
+                     -restart_each_iteration -cap_fix_pass -slew_fix_pass \
+                     -relax_max_cap -beta -mu_exponent -lambda_floor \
+                     -timing_bias -budget_safety_factor -upsize_hysteresis \
+                     -lambda_init_value -lambda_seed_exponent -est_loop_iters \
+                     -lambda_update_c -flach_k_init -flach_k_tns_small \
+                     -flach_k_final -sharma_r -sharma_k -reimann_rho_init \
+                     -reimann_k -reimann_setpoint -livramento_alpha0 \
+                     -cost_upstream_load -cost_fanout_slew \
+                     -cost_global_phi -cost_delta_delay -gamma_local_slack \
+                     -stagnation_window -stagnation_count \
+                     -stagnation_improve_frac -stagnation_require_tns \
+                     -near_met_gate_frac \
+                     -term_tns_target_frac -term_wns_target_frac \
+                     -term_tns_improve_frac -term_power_improve_frac \
+                     -term_improve_window -term_wall_limit_s \
+                     -best_tns_target_frac}
   set reset_all [expr { [array size flags] == 0 }]
 
-  if { $reset_all || [info exists flags(-presize_mode)] } {
-    rsz::clear_string_prop "gs_presize_mode"
+  if { $reset_all || [info exists flags(-preset)] } {
+    rsz::clear_string_prop "gs_preset"
+  }
+  if { $reset_all || [info exists flags(-init_mode)] } {
+    rsz::clear_string_prop "gs_init_mode"
+  }
+  if { $reset_all || [info exists flags(-init_seed)] } {
+    rsz::clear_int_prop "gs_init_seed"
+  }
+  if { $reset_all || [info exists flags(-lambda_seed)] } {
+    rsz::clear_string_prop "gs_lambda_seed"
+  }
+  if { $reset_all || [info exists flags(-lambda_update)] } {
+    rsz::clear_string_prop "gs_lambda_update"
+  }
+  if { $reset_all || [info exists flags(-mu_policy)] } {
+    rsz::clear_string_prop "gs_mu_policy"
+  }
+  if { $reset_all || [info exists flags(-sweep_engine)] } {
+    rsz::clear_string_prop "gs_sweep_engine"
+  }
+  if { $reset_all || [info exists flags(-gs_refresh)] } {
+    rsz::clear_string_prop "gs_gs_refresh"
+  }
+  if { $reset_all || [info exists flags(-traversal)] } {
+    rsz::clear_string_prop "gs_traversal"
   }
   if { $reset_all || [info exists flags(-include_clock_network)] } {
     rsz::clear_bool_prop "gs_include_clock_network"
+  }
+  if { $reset_all || [info exists flags(-size_registers)] } {
+    rsz::clear_bool_prop "gs_size_registers"
+  }
+  if { $reset_all || [info exists flags(-power_objective)] } {
+    rsz::clear_string_prop "gs_power_objective"
+  }
+  if { $reset_all || [info exists flags(-power_phase_filter)] } {
+    rsz::clear_bool_prop "gs_power_phase_filter"
+  }
+  if { $reset_all || [info exists flags(-timing_cost)] } {
+    rsz::clear_string_prop "gs_timing_cost"
   }
   if { $reset_all || [info exists flags(-setup_slack_margin)] } {
     rsz::clear_double_prop "gs_setup_slack_margin"
   }
   if { $reset_all || [info exists flags(-max_iterations)] } {
     rsz::clear_int_prop "gs_max_iterations"
+  }
+  if { $reset_all || [info exists flags(-max_inner_sweeps)] } {
+    rsz::clear_int_prop "gs_max_inner_sweeps"
+  }
+  if { $reset_all || [info exists flags(-restart_each_iteration)] } {
+    rsz::clear_bool_prop "gs_restart_each_iteration"
+  }
+  if { $reset_all || [info exists flags(-cap_fix_pass)] } {
+    rsz::clear_bool_prop "gs_cap_fix_pass"
+  }
+  if { $reset_all || [info exists flags(-slew_fix_pass)] } {
+    rsz::clear_bool_prop "gs_slew_fix_pass"
+  }
+  if { $reset_all || [info exists flags(-relax_max_cap)] } {
+    rsz::clear_bool_prop "gs_relax_max_cap"
   }
   if { $reset_all || [info exists flags(-beta)] } {
     rsz::clear_double_prop "gs_beta"
@@ -902,6 +1335,120 @@ proc reset_global_sizing_config { args } {
   if { $reset_all || [info exists flags(-budget_safety_factor)] } {
     rsz::clear_double_prop "gs_budget_safety_factor"
   }
+  if { $reset_all || [info exists flags(-upsize_hysteresis)] } {
+    rsz::clear_double_prop "gs_upsize_hysteresis"
+  }
+  if { $reset_all || [info exists flags(-lambda_init_value)] } {
+    rsz::clear_double_prop "gs_lambda_init_value"
+  }
+  if { $reset_all || [info exists flags(-lambda_seed_exponent)] } {
+    rsz::clear_double_prop "gs_lambda_seed_exponent"
+  }
+  if { $reset_all || [info exists flags(-est_loop_iters)] } {
+    rsz::clear_int_prop "gs_est_loop_iters"
+  }
+  if { $reset_all || [info exists flags(-lambda_update_c)] } {
+    rsz::clear_double_prop "gs_lambda_update_c"
+  }
+  if { $reset_all || [info exists flags(-flach_k_init)] } {
+    rsz::clear_double_prop "gs_flach_k_init"
+  }
+  if { $reset_all || [info exists flags(-flach_k_tns_small)] } {
+    rsz::clear_double_prop "gs_flach_k_tns_small"
+  }
+  if { $reset_all || [info exists flags(-flach_k_final)] } {
+    rsz::clear_double_prop "gs_flach_k_final"
+  }
+  if { $reset_all || [info exists flags(-sharma_r)] } {
+    rsz::clear_double_prop "gs_sharma_r"
+  }
+  if { $reset_all || [info exists flags(-sharma_k)] } {
+    rsz::clear_double_prop "gs_sharma_k"
+  }
+  if { $reset_all || [info exists flags(-reimann_rho_init)] } {
+    rsz::clear_double_prop "gs_reimann_rho_init"
+  }
+  if { $reset_all || [info exists flags(-reimann_k)] } {
+    rsz::clear_double_prop "gs_reimann_k"
+  }
+  if { $reset_all || [info exists flags(-reimann_setpoint)] } {
+    rsz::clear_string_prop "gs_reimann_setpoint"
+  }
+  if { $reset_all || [info exists flags(-livramento_alpha0)] } {
+    rsz::clear_double_prop "gs_livramento_alpha0"
+  }
+  if { $reset_all || [info exists flags(-cost_upstream_load)] } {
+    rsz::clear_bool_prop "gs_cost_upstream_load"
+  }
+  if { $reset_all || [info exists flags(-cost_fanout_slew)] } {
+    rsz::clear_bool_prop "gs_cost_fanout_slew"
+  }
+  if { $reset_all || [info exists flags(-cost_global_phi)] } {
+    rsz::clear_bool_prop "gs_cost_global_phi"
+  }
+  if { $reset_all || [info exists flags(-cost_delta_delay)] } {
+    rsz::clear_bool_prop "gs_cost_delta_delay"
+  }
+  if { $reset_all || [info exists flags(-downsize_guard)] } {
+    rsz::clear_string_prop "gs_downsize_guard"
+  }
+  if { $reset_all || [info exists flags(-move_set)] } {
+    rsz::clear_string_prop "gs_move_set"
+  }
+  if { $reset_all || [info exists flags(-fast_olr_start_iter)] } {
+    rsz::clear_int_prop "gs_fast_olr_start_iter"
+  }
+  if { $reset_all || [info exists flags(-output_drc_veto)] } {
+    rsz::clear_string_prop "gs_output_drc_veto"
+  }
+  if { $reset_all || [info exists flags(-timing_scale)] } {
+    rsz::clear_string_prop "gs_timing_scale"
+  }
+  if { $reset_all || [info exists flags(-termination)] } {
+    rsz::clear_string_prop "gs_termination"
+  }
+  if { $reset_all || [info exists flags(-best_tracker)] } {
+    rsz::clear_string_prop "gs_best_tracker"
+  }
+  if { $reset_all || [info exists flags(-gamma_local_slack)] } {
+    rsz::clear_double_prop "gs_gamma_local_slack"
+  }
+  if { $reset_all || [info exists flags(-stagnation_window)] } {
+    rsz::clear_int_prop "gs_stagnation_window"
+  }
+  if { $reset_all || [info exists flags(-stagnation_count)] } {
+    rsz::clear_int_prop "gs_stagnation_count"
+  }
+  if { $reset_all || [info exists flags(-stagnation_improve_frac)] } {
+    rsz::clear_double_prop "gs_stagnation_improve_frac"
+  }
+  if { $reset_all || [info exists flags(-stagnation_require_tns)] } {
+    rsz::clear_bool_prop "gs_stagnation_require_tns"
+  }
+  if { $reset_all || [info exists flags(-near_met_gate_frac)] } {
+    rsz::clear_double_prop "gs_near_met_gate_frac"
+  }
+  if { $reset_all || [info exists flags(-term_tns_target_frac)] } {
+    rsz::clear_double_prop "gs_term_tns_target_frac"
+  }
+  if { $reset_all || [info exists flags(-term_wns_target_frac)] } {
+    rsz::clear_double_prop "gs_term_wns_target_frac"
+  }
+  if { $reset_all || [info exists flags(-term_tns_improve_frac)] } {
+    rsz::clear_double_prop "gs_term_tns_improve_frac"
+  }
+  if { $reset_all || [info exists flags(-term_power_improve_frac)] } {
+    rsz::clear_double_prop "gs_term_power_improve_frac"
+  }
+  if { $reset_all || [info exists flags(-term_improve_window)] } {
+    rsz::clear_int_prop "gs_term_improve_window"
+  }
+  if { $reset_all || [info exists flags(-term_wall_limit_s)] } {
+    rsz::clear_double_prop "gs_term_wall_limit_s"
+  }
+  if { $reset_all || [info exists flags(-best_tns_target_frac)] } {
+    rsz::clear_double_prop "gs_best_tns_target_frac"
+  }
 }
 
 sta::define_cmd_args "report_global_sizing_config" {}
@@ -910,10 +1457,70 @@ proc report_global_sizing_config { args } {
   sta::parse_key_args "report_global_sizing_config" args keys {} flags {}
   set block [rsz::get_block]
 
-  set presize_mode_value "undefined"
-  set prop [odb::dbStringProperty_find $block "gs_presize_mode"]
+  set preset_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_preset"]
   if { $prop ne "NULL" && $prop ne "" } {
-    set presize_mode_value [$prop getValue]
+    set preset_value [$prop getValue]
+  }
+
+  set init_mode_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_init_mode"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set init_mode_value [$prop getValue]
+  }
+
+  set lambda_seed_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_lambda_seed"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set lambda_seed_value [$prop getValue]
+  }
+
+  set lambda_update_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_lambda_update"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set lambda_update_value [$prop getValue]
+  }
+
+  set mu_policy_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_mu_policy"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set mu_policy_value [$prop getValue]
+  }
+
+  set sweep_engine_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_sweep_engine"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set sweep_engine_value [$prop getValue]
+  }
+
+  set gs_refresh_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_gs_refresh"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set gs_refresh_value [$prop getValue]
+  }
+
+  set traversal_value "undefined"
+  set prop [odb::dbStringProperty_find $block "gs_traversal"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set traversal_value [$prop getValue]
+  }
+
+  foreach {var prop_name} {
+    downsize_guard_value gs_downsize_guard
+    move_set_value gs_move_set
+    output_drc_veto_value gs_output_drc_veto
+    timing_scale_value gs_timing_scale
+    termination_value gs_termination
+    best_tracker_value gs_best_tracker
+    reimann_setpoint_value gs_reimann_setpoint
+    power_objective_value gs_power_objective
+    timing_cost_value gs_timing_cost
+  } {
+    set $var "undefined"
+    set prop [odb::dbStringProperty_find $block $prop_name]
+    if { $prop ne "NULL" && $prop ne "" } {
+      set $var [$prop getValue]
+    }
   }
 
   set include_clock_network_value "undefined"
@@ -929,10 +1536,34 @@ proc report_global_sizing_config { args } {
     set setup_slack_margin_value [$prop getValue]
   }
 
+  set init_seed_value "undefined"
+  set prop [odb::dbIntProperty_find $block "gs_init_seed"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set init_seed_value [$prop getValue]
+  }
+
   set max_iterations_value "undefined"
   set prop [odb::dbIntProperty_find $block "gs_max_iterations"]
   if { $prop ne "NULL" && $prop ne "" } {
     set max_iterations_value [$prop getValue]
+  }
+
+  set max_inner_sweeps_value "undefined"
+  set prop [odb::dbIntProperty_find $block "gs_max_inner_sweeps"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set max_inner_sweeps_value [$prop getValue]
+  }
+
+  set fast_olr_start_iter_value "undefined"
+  set prop [odb::dbIntProperty_find $block "gs_fast_olr_start_iter"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set fast_olr_start_iter_value [$prop getValue]
+  }
+
+  set est_loop_iters_value "undefined"
+  set prop [odb::dbIntProperty_find $block "gs_est_loop_iters"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set est_loop_iters_value [$prop getValue]
   }
 
   set beta_value "undefined"
@@ -965,17 +1596,140 @@ proc report_global_sizing_config { args } {
     set budget_safety_factor_value [$prop getValue]
   }
 
+  set upsize_hysteresis_value "undefined"
+  set prop [odb::dbDoubleProperty_find $block "gs_upsize_hysteresis"]
+  if { $prop ne "NULL" && $prop ne "" } {
+    set upsize_hysteresis_value [$prop getValue]
+  }
+
+  foreach {var prop_name} {
+    size_registers_value gs_size_registers
+    power_phase_filter_value gs_power_phase_filter
+    restart_each_iteration_value gs_restart_each_iteration
+    cap_fix_pass_value gs_cap_fix_pass
+    slew_fix_pass_value gs_slew_fix_pass
+    relax_max_cap_value gs_relax_max_cap
+    cost_upstream_load_value gs_cost_upstream_load
+    cost_fanout_slew_value gs_cost_fanout_slew
+    cost_global_phi_value gs_cost_global_phi
+    cost_delta_delay_value gs_cost_delta_delay
+    stagnation_require_tns_value gs_stagnation_require_tns
+  } {
+    set $var "undefined"
+    set prop [odb::dbBoolProperty_find $block $prop_name]
+    if { $prop ne "NULL" && $prop ne "" } {
+      set v [$prop getValue]
+      set $var [expr { $v ? "true" : "false" }]
+    }
+  }
+
+  foreach {var prop_name} {
+    lambda_init_value_value gs_lambda_init_value
+    lambda_seed_exponent_value gs_lambda_seed_exponent
+    lambda_update_c_value gs_lambda_update_c
+    flach_k_init_value gs_flach_k_init
+    flach_k_tns_small_value gs_flach_k_tns_small
+    flach_k_final_value gs_flach_k_final
+    sharma_r_value gs_sharma_r
+    sharma_k_value gs_sharma_k
+    reimann_rho_init_value gs_reimann_rho_init
+    reimann_k_value gs_reimann_k
+    livramento_alpha0_value gs_livramento_alpha0
+    gamma_local_slack_value gs_gamma_local_slack
+    stagnation_improve_frac_value gs_stagnation_improve_frac
+    near_met_gate_frac_value gs_near_met_gate_frac
+    term_tns_target_frac_value gs_term_tns_target_frac
+    term_wns_target_frac_value gs_term_wns_target_frac
+    term_tns_improve_frac_value gs_term_tns_improve_frac
+    term_power_improve_frac_value gs_term_power_improve_frac
+    term_wall_limit_s_value gs_term_wall_limit_s
+    best_tns_target_frac_value gs_best_tns_target_frac
+  } {
+    set $var "undefined"
+    set prop [odb::dbDoubleProperty_find $block $prop_name]
+    if { $prop ne "NULL" && $prop ne "" } {
+      set $var [$prop getValue]
+    }
+  }
+
+  foreach {var prop_name} {
+    stagnation_window_value gs_stagnation_window
+    stagnation_count_value gs_stagnation_count
+    term_improve_window_value gs_term_improve_window
+  } {
+    set $var "undefined"
+    set prop [odb::dbIntProperty_find $block $prop_name]
+    if { $prop ne "NULL" && $prop ne "" } {
+      set $var [$prop getValue]
+    }
+  }
+
   puts "*******************************************"
   puts "Global sizing config:"
-  puts "-presize_mode:           $presize_mode_value"
+  puts "-preset:                 $preset_value"
+  puts "-init_mode:              $init_mode_value"
+  puts "-init_seed:              $init_seed_value"
+  puts "-lambda_seed:            $lambda_seed_value"
+  puts "-lambda_update:          $lambda_update_value"
+  puts "-mu_policy:              $mu_policy_value"
+  puts "-sweep_engine:           $sweep_engine_value"
+  puts "-gs_refresh:             $gs_refresh_value"
+  puts "-traversal:              $traversal_value"
+  puts "-downsize_guard:         $downsize_guard_value"
+  puts "-move_set:               $move_set_value"
+  puts "-fast_olr_start_iter:    $fast_olr_start_iter_value"
+  puts "-output_drc_veto:        $output_drc_veto_value"
+  puts "-timing_scale:           $timing_scale_value"
+  puts "-termination:            $termination_value"
+  puts "-best_tracker:           $best_tracker_value"
   puts "-include_clock_network:  $include_clock_network_value"
+  puts "-size_registers:         $size_registers_value"
+  puts "-power_objective:        $power_objective_value"
+  puts "-power_phase_filter:     $power_phase_filter_value"
+  puts "-timing_cost:            $timing_cost_value"
   puts "-setup_slack_margin:     $setup_slack_margin_value"
   puts "-max_iterations:         $max_iterations_value"
+  puts "-max_inner_sweeps:       $max_inner_sweeps_value"
+  puts "-restart_each_iteration: $restart_each_iteration_value"
+  puts "-cap_fix_pass:           $cap_fix_pass_value"
+  puts "-slew_fix_pass:          $slew_fix_pass_value"
+  puts "-relax_max_cap:          $relax_max_cap_value"
   puts "-beta:                   $beta_value"
   puts "-mu_exponent:            $mu_exponent_value"
   puts "-lambda_floor:           $lambda_floor_value"
   puts "-timing_bias:            $timing_bias_value"
   puts "-budget_safety_factor:   $budget_safety_factor_value"
+  puts "-upsize_hysteresis:      $upsize_hysteresis_value"
+  puts "-lambda_init_value:      $lambda_init_value_value"
+  puts "-lambda_seed_exponent:   $lambda_seed_exponent_value"
+  puts "-est_loop_iters:         $est_loop_iters_value"
+  puts "-lambda_update_c:        $lambda_update_c_value"
+  puts "-flach_k_init:           $flach_k_init_value"
+  puts "-flach_k_tns_small:      $flach_k_tns_small_value"
+  puts "-flach_k_final:          $flach_k_final_value"
+  puts "-sharma_r:               $sharma_r_value"
+  puts "-sharma_k:               $sharma_k_value"
+  puts "-reimann_rho_init:       $reimann_rho_init_value"
+  puts "-reimann_k:              $reimann_k_value"
+  puts "-reimann_setpoint:       $reimann_setpoint_value"
+  puts "-livramento_alpha0:      $livramento_alpha0_value"
+  puts "-cost_upstream_load:     $cost_upstream_load_value"
+  puts "-cost_fanout_slew:       $cost_fanout_slew_value"
+  puts "-cost_global_phi:        $cost_global_phi_value"
+  puts "-cost_delta_delay:       $cost_delta_delay_value"
+  puts "-gamma_local_slack:      $gamma_local_slack_value"
+  puts "-stagnation_window:      $stagnation_window_value"
+  puts "-stagnation_count:       $stagnation_count_value"
+  puts "-stagnation_improve_frac: $stagnation_improve_frac_value"
+  puts "-stagnation_require_tns: $stagnation_require_tns_value"
+  puts "-near_met_gate_frac:     $near_met_gate_frac_value"
+  puts "-term_tns_target_frac:   $term_tns_target_frac_value"
+  puts "-term_wns_target_frac:   $term_wns_target_frac_value"
+  puts "-term_tns_improve_frac:  $term_tns_improve_frac_value"
+  puts "-term_power_improve_frac: $term_power_improve_frac_value"
+  puts "-term_improve_window:    $term_improve_window_value"
+  puts "-term_wall_limit_s:      $term_wall_limit_s_value"
+  puts "-best_tns_target_frac:   $best_tns_target_frac_value"
   puts "*******************************************"
 }
 

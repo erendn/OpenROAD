@@ -566,28 +566,125 @@ void Resizer::initBlock()
   // leaves the default in place. GlobalSizingPolicy reads these via
   // globalSizingConfig().
   global_sizing_config_ = GlobalSizingConfig{};
-  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_presize_mode")) {
+  // A preset sets every option; the individual gs_* properties below override
+  // it.
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_preset")) {
     const std::string v = p->getValue();
-    if (v == "disabled") {
-      global_sizing_config_.presize_mode
-          = GlobalSizingConfig::PresizeMode::kDisabled;
-    } else if (v == "min_size_max_vt") {
-      global_sizing_config_.presize_mode
-          = GlobalSizingConfig::PresizeMode::kMinSizeMaxVt;
-    } else if (v == "max_size_min_vt") {
-      global_sizing_config_.presize_mode
-          = GlobalSizingConfig::PresizeMode::kMaxSizeMinVt;
+    GlobalSizingConfig::Preset preset
+        = GlobalSizingConfig::Preset::kRszBaseline;
+    if (parsePreset(v.c_str(), preset)) {
+      global_sizing_config_.applyPreset(preset);
+    } else {
+      logger_->warn(RSZ,
+                    418,
+                    "Ignoring invalid gs_preset value '{}'; expected "
+                    "rsz_baseline.",
+                    v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_init_mode")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::InitMode init_mode
+        = GlobalSizingConfig::InitMode::kAsGiven;
+    if (parseInitMode(v.c_str(), init_mode)) {
+      global_sizing_config_.init_mode = init_mode;
     } else {
       logger_->warn(RSZ,
                     413,
-                    "Ignoring invalid gs_presize_mode value '{}'; expected "
-                    "disabled, min_size_max_vt, or max_size_min_vt.",
+                    "Ignoring invalid gs_init_mode value '{}'; expected "
+                    "as_given, min_size, max_size, min_size_fixviol, "
+                    "min_size_fixcap, random, or average.",
                     v);
+    }
+  }
+  // gs_presize_mode is no longer read; gs_init_mode replaces it. Warn when a
+  // block still carries it, since its setting would otherwise be dropped
+  // silently.
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_presize_mode")) {
+    logger_->warn(RSZ,
+                  441,
+                  "Ignoring the retired gs_presize_mode property (value '{}'); "
+                  "it was renamed to gs_init_mode with no alias. The initial "
+                  "solution is {}. Re-run set_global_sizing_config -init_mode.",
+                  p->getValue(),
+                  toString(global_sizing_config_.init_mode));
+  }
+  if (dbIntProperty* p = dbIntProperty::find(block_, "gs_init_seed")) {
+    global_sizing_config_.init_seed = p->getValue();
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_lambda_seed")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::LambdaSeed seed
+        = GlobalSizingConfig::LambdaSeed::kDelayPropCritMu;
+    if (parseLambdaSeed(v.c_str(), seed)) {
+      global_sizing_config_.lambda_seed = seed;
+    } else {
+      logger_->warn(RSZ, 423, "Ignoring invalid gs_lambda_seed value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_sweep_engine")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::SweepEngineKind engine
+        = GlobalSizingConfig::SweepEngineKind::kJacobiSnapshot;
+    if (parseSweepEngine(v.c_str(), engine)) {
+      global_sizing_config_.sweep_engine = engine;
+    } else {
+      logger_->warn(
+          RSZ, 426, "Ignoring invalid gs_sweep_engine value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_gs_refresh")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::GsRefresh refresh
+        = GlobalSizingConfig::GsRefresh::kLocal;
+    if (parseGsRefresh(v.c_str(), refresh)) {
+      global_sizing_config_.gs_refresh = refresh;
+    } else {
+      logger_->warn(RSZ, 427, "Ignoring invalid gs_gs_refresh value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_traversal")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::Traversal traversal
+        = GlobalSizingConfig::Traversal::kForwardTopo;
+    if (parseTraversal(v.c_str(), traversal)) {
+      global_sizing_config_.traversal = traversal;
+    } else {
+      logger_->warn(RSZ, 428, "Ignoring invalid gs_traversal value '{}'.", v);
     }
   }
   if (dbBoolProperty* p
       = dbBoolProperty::find(block_, "gs_include_clock_network")) {
     global_sizing_config_.include_clock_network = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_size_registers")) {
+    global_sizing_config_.size_registers = p->getValue();
+  }
+  if (dbStringProperty* p
+      = dbStringProperty::find(block_, "gs_power_objective")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::PowerObjective objective
+        = GlobalSizingConfig::PowerObjective::kLeakage;
+    if (parsePowerObjective(v.c_str(), objective)) {
+      global_sizing_config_.power_objective = objective;
+    } else {
+      logger_->warn(
+          RSZ, 438, "Ignoring invalid gs_power_objective value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_timing_cost")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::TimingCost cost
+        = GlobalSizingConfig::TimingCost::kWorstArc;
+    if (parseTimingCost(v.c_str(), cost)) {
+      global_sizing_config_.timing_cost = cost;
+    } else {
+      logger_->warn(RSZ, 458, "Ignoring invalid gs_timing_cost value '{}'.", v);
+    }
+  }
+  if (dbBoolProperty* p
+      = dbBoolProperty::find(block_, "gs_power_phase_filter")) {
+    global_sizing_config_.power_phase_filter = p->getValue();
   }
   if (dbDoubleProperty* p
       = dbDoubleProperty::find(block_, "gs_setup_slack_margin")) {
@@ -596,6 +693,22 @@ void Resizer::initBlock()
   }
   if (dbIntProperty* p = dbIntProperty::find(block_, "gs_max_iterations")) {
     global_sizing_config_.max_iterations = p->getValue();
+  }
+  if (dbIntProperty* p = dbIntProperty::find(block_, "gs_max_inner_sweeps")) {
+    global_sizing_config_.max_inner_sweeps = p->getValue();
+  }
+  if (dbBoolProperty* p
+      = dbBoolProperty::find(block_, "gs_restart_each_iteration")) {
+    global_sizing_config_.restart_each_iteration = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_cap_fix_pass")) {
+    global_sizing_config_.cap_fix_pass = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_slew_fix_pass")) {
+    global_sizing_config_.slew_fix_pass = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_relax_max_cap")) {
+    global_sizing_config_.relax_max_cap = p->getValue();
   }
   if (dbDoubleProperty* p = dbDoubleProperty::find(block_, "gs_beta")) {
     global_sizing_config_.beta = static_cast<float>(p->getValue());
@@ -612,6 +725,226 @@ void Resizer::initBlock()
   if (dbDoubleProperty* p
       = dbDoubleProperty::find(block_, "gs_budget_safety_factor")) {
     global_sizing_config_.budget_safety_factor
+        = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_upsize_hysteresis")) {
+    global_sizing_config_.upsize_hysteresis = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_lambda_init_value")) {
+    global_sizing_config_.lambda_init_value = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_lambda_seed_exponent")) {
+    global_sizing_config_.lambda_seed_exponent
+        = static_cast<float>(p->getValue());
+  }
+  if (dbIntProperty* p = dbIntProperty::find(block_, "gs_est_loop_iters")) {
+    global_sizing_config_.est_loop_iters = p->getValue();
+  }
+  if (dbStringProperty* p
+      = dbStringProperty::find(block_, "gs_lambda_update")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::LambdaUpdate update
+        = GlobalSizingConfig::LambdaUpdate::kNormSubgradient;
+    if (parseLambdaUpdate(v.c_str(), update)) {
+      global_sizing_config_.lambda_update = update;
+    } else {
+      logger_->warn(
+          RSZ, 419, "Ignoring invalid gs_lambda_update value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_mu_policy")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::MuPolicy policy
+        = GlobalSizingConfig::MuPolicy::kReseedEachIter;
+    if (parseMuPolicy(v.c_str(), policy)) {
+      global_sizing_config_.mu_policy = policy;
+      // An explicit policy is never changed by the lambda/mu pairing
+      // (GlobalSizingConfig::resolveLambdaMuPairing). Only a valid value
+      // counts, so a typo does not silently disable the pairing.
+      global_sizing_config_.mu_policy_explicit = true;
+    } else {
+      logger_->warn(RSZ, 420, "Ignoring invalid gs_mu_policy value '{}'.", v);
+    }
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_lambda_update_c")) {
+    global_sizing_config_.lambda_update_c = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p = dbDoubleProperty::find(block_, "gs_flach_k_init")) {
+    global_sizing_config_.flach_k_init = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_flach_k_tns_small")) {
+    global_sizing_config_.flach_k_tns_small = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_flach_k_final")) {
+    global_sizing_config_.flach_k_final = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p = dbDoubleProperty::find(block_, "gs_sharma_r")) {
+    global_sizing_config_.sharma_r = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p = dbDoubleProperty::find(block_, "gs_sharma_k")) {
+    global_sizing_config_.sharma_k = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_reimann_rho_init")) {
+    global_sizing_config_.reimann_rho_init = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p = dbDoubleProperty::find(block_, "gs_reimann_k")) {
+    global_sizing_config_.reimann_k = static_cast<float>(p->getValue());
+  }
+  if (dbStringProperty* p
+      = dbStringProperty::find(block_, "gs_reimann_setpoint")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::ReimannSetpoint setpoint
+        = GlobalSizingConfig::ReimannSetpoint::kSInit;
+    if (parseReimannSetpoint(v.c_str(), setpoint)) {
+      global_sizing_config_.reimann_setpoint = setpoint;
+    } else {
+      logger_->warn(
+          RSZ, 437, "Ignoring invalid gs_reimann_setpoint value '{}'.", v);
+    }
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_livramento_alpha0")) {
+    global_sizing_config_.livramento_alpha0 = static_cast<float>(p->getValue());
+  }
+  if (dbBoolProperty* p
+      = dbBoolProperty::find(block_, "gs_cost_upstream_load")) {
+    global_sizing_config_.cost_upstream_load = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_cost_fanout_slew")) {
+    global_sizing_config_.cost_fanout_slew = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_cost_global_phi")) {
+    global_sizing_config_.cost_global_phi = p->getValue();
+  }
+  if (dbBoolProperty* p = dbBoolProperty::find(block_, "gs_cost_delta_delay")) {
+    global_sizing_config_.cost_delta_delay = p->getValue();
+  }
+  if (dbStringProperty* p
+      = dbStringProperty::find(block_, "gs_downsize_guard")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::DownsizeGuard guard;
+    if (parseDownsizeGuard(v.c_str(), guard)) {
+      global_sizing_config_.downsize_guard = guard;
+    } else {
+      logger_->warn(
+          RSZ, 432, "Ignoring invalid gs_downsize_guard value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_move_set")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::MoveSet move_set;
+    if (parseMoveSet(v.c_str(), move_set)) {
+      global_sizing_config_.move_set = move_set;
+    } else {
+      logger_->warn(RSZ, 446, "Ignoring invalid gs_move_set value '{}'.", v);
+    }
+  }
+  if (dbIntProperty* p
+      = dbIntProperty::find(block_, "gs_fast_olr_start_iter")) {
+    global_sizing_config_.fast_olr_start_iter = p->getValue();
+  }
+  if (dbStringProperty* p
+      = dbStringProperty::find(block_, "gs_output_drc_veto")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::OutputDrcVeto veto;
+    if (parseOutputDrcVeto(v.c_str(), veto)) {
+      global_sizing_config_.output_drc_veto = veto;
+    } else {
+      logger_->warn(
+          RSZ, 453, "Ignoring invalid gs_output_drc_veto value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_timing_scale")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::TimingScale scale;
+    if (parseTimingScale(v.c_str(), scale)) {
+      global_sizing_config_.timing_scale = scale;
+    } else {
+      logger_->warn(
+          RSZ, 435, "Ignoring invalid gs_timing_scale value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_termination")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::TerminationKind termination;
+    if (parseTermination(v.c_str(), termination)) {
+      global_sizing_config_.termination = termination;
+    } else {
+      logger_->warn(RSZ, 433, "Ignoring invalid gs_termination value '{}'.", v);
+    }
+  }
+  if (dbStringProperty* p = dbStringProperty::find(block_, "gs_best_tracker")) {
+    const std::string v = p->getValue();
+    GlobalSizingConfig::BestTrackerKind tracker;
+    if (parseBestTracker(v.c_str(), tracker)) {
+      global_sizing_config_.best_tracker = tracker;
+    } else {
+      logger_->warn(
+          RSZ, 434, "Ignoring invalid gs_best_tracker value '{}'.", v);
+    }
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_gamma_local_slack")) {
+    global_sizing_config_.gamma_local_slack = static_cast<float>(p->getValue());
+  }
+  if (dbIntProperty* p = dbIntProperty::find(block_, "gs_stagnation_window")) {
+    global_sizing_config_.stagnation_window = p->getValue();
+  }
+  if (dbIntProperty* p = dbIntProperty::find(block_, "gs_stagnation_count")) {
+    global_sizing_config_.stagnation_count = p->getValue();
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_stagnation_improve_frac")) {
+    global_sizing_config_.stagnation_improve_frac
+        = static_cast<float>(p->getValue());
+  }
+  if (dbBoolProperty* p
+      = dbBoolProperty::find(block_, "gs_stagnation_require_tns")) {
+    global_sizing_config_.stagnation_require_tns = p->getValue();
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_near_met_gate_frac")) {
+    global_sizing_config_.near_met_gate_frac
+        = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_term_tns_target_frac")) {
+    global_sizing_config_.term_tns_target_frac
+        = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_term_wns_target_frac")) {
+    global_sizing_config_.term_wns_target_frac
+        = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_term_tns_improve_frac")) {
+    global_sizing_config_.term_tns_improve_frac
+        = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_term_power_improve_frac")) {
+    global_sizing_config_.term_power_improve_frac
+        = static_cast<float>(p->getValue());
+  }
+  if (dbIntProperty* p
+      = dbIntProperty::find(block_, "gs_term_improve_window")) {
+    global_sizing_config_.term_improve_window = p->getValue();
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_term_wall_limit_s")) {
+    global_sizing_config_.term_wall_limit_s = static_cast<float>(p->getValue());
+  }
+  if (dbDoubleProperty* p
+      = dbDoubleProperty::find(block_, "gs_best_tns_target_frac")) {
+    global_sizing_config_.best_tns_target_frac
         = static_cast<float>(p->getValue());
   }
 }
@@ -4528,6 +4861,41 @@ sta::ArcDelay Resizer::gateDelay(const sta::LibertyPort* drvr_port,
       drvr_port, load_cap, scene, min_max, arc_delay_calc, delays, slews);
   return max(delays[sta::RiseFall::riseIndex()],
              delays[sta::RiseFall::fallIndex()]);
+}
+
+sta::ArcDelay Resizer::arcSetDelay(const sta::TimingArcSet* arc_set,
+                                   const float load_cap,
+                                   const sta::Scene* scene,
+                                   const sta::MinMax* min_max,
+                                   sta::ArcDelayCalc* arc_delay_calc)
+{
+  // A timing group without delay tables gives an arc set with no arcs, and so
+  // no delay.
+  if (arc_set->arcs().empty()) {
+    return 0.0;
+  }
+  sta::ArcDelay delay = -sta::INF;
+  for (sta::TimingArc* arc : arc_set->arcs()) {
+    const sta::RiseFall* in_rf = arc->fromEdge()->asRiseFall();
+    // Same input slew as gateDelays: annotated if available, else the target.
+    float in_slew = tgt_slews_[in_rf->index()];
+    const auto it = input_slew_map_.find(arc->from());
+    if (it != input_slew_map_.end()) {
+      in_slew = it->second[in_rf->index()];
+    }
+    sta::LoadPinIndexMap load_pin_index_map(network_);
+    sta::ArcDcalcResult dcalc_result
+        = arc_delay_calc->gateDelay(nullptr,
+                                    arc,
+                                    in_slew,
+                                    load_cap,
+                                    nullptr,
+                                    load_pin_index_map,
+                                    scene,
+                                    min_max);
+    delay = max(delay, dcalc_result.gateDelay());
+  }
+  return delay;
 }
 
 ////////////////////////////////////////////////////////////////

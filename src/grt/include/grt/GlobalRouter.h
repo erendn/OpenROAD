@@ -465,7 +465,7 @@ class GlobalRouter
   void printSegment(const GSegment& segment);
   void reportLayerSettings(int min_routing_layer, int max_routing_layer);
   void reportResources();
-  void reportCongestion();
+  void reportCongestion(bool report_summary);
   void updateEdgesUsage();
   void updateDbCongestionFromGuides();
   void computeGCellGridPatternFromGuides(

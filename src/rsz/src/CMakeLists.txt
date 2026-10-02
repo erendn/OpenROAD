@@ -38,6 +38,25 @@ add_library(rsz_lib
     policy/SetupMt1Policy.cc
     policy/SetupReroutePolicy.cc
     policy/GlobalSizingPolicy.cc
+    GlobalSizingConfig.cc
+    lr/LrState.cc
+    lr/CapMultipliers.cc
+    lr/CapRecheck.cc
+    lr/CostTerms.cc
+    lr/ElectricalModel.cc
+    lr/Guards.cc
+    lr/InitPass.cc
+    lr/InitSelect.cc
+    lr/LambdaSeeder.cc
+    lr/LambdaUpdater.cc
+    lr/ObjectivePower.cc
+    lr/FlowProjection.cc
+    lr/SizeVthGrid.cc
+    lr/SweepEngine.cc
+    lr/TimingScale.cc
+    lr/BestTracker.cc
+    lr/Termination.cc
+    lr/ViolationRepair.cc
     Resizer.cc
     OdbCallBack.cc
     ConcreteSwapArithModules.cc
@@ -88,6 +107,7 @@ target_include_directories(rsz
     ${OPENSTA_HOME}/include/sta
     .
     policy
+    lr
 )
 
 target_include_directories(rsz_lib
@@ -97,6 +117,7 @@ target_include_directories(rsz_lib
     .
     move
     policy
+    lr
 )
 
 target_link_libraries(rsz_lib

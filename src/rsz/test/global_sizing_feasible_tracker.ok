@@ -1,0 +1,156 @@
+[INFO ODB-0227] LEF file: Nangate45/Nangate45.lef, created 22 layers, 27 vias, 135 library cells
+[INFO ODB-0128] Design: gcd
+[INFO ODB-0130]     Created 54 pins.
+[INFO ODB-0131]     Created 571 components and 2554 component-terminals.
+[INFO ODB-0132]     Created 5 special nets and 1142 connections.
+[INFO ODB-0133]     Created 528 nets and 1412 connections.
+=== livramento_partial capped at one iteration ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=livramento_partial init=min_size init_seed=0 seed=delay_proportional_crit_mu update=livramento_ratio mu_policy=endpoint_ratio mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=livramento_alpha term=pure_cap best=livramento_feasible | max_iter=1 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=false power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=true slew_fix_pass=false relax_max_cap=true
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 195/422 editable instances.
+[INFO RSZ-0460] GLOBAL_SIZING best solution: 0 of 1 iteration(s) had no setup, max capacitance or max slew violation; keeping the final iteration.
+[INFO RSZ-0400] GLOBAL_SIZING: 96 cells replaced (loop); 1/1 sweeps accepted, 0 rolled back; 96 replacements attempted in total (96 upsize, 0 downsize).
+[INFO RSZ-0459] GLOBAL_SIZING cap fix pass: 0 gate(s) over their max capacitance, summed over 1 sweep(s); 0 resized to clear it, 0 resized but still over it, 0 left as they were.
+[INFO RSZ-0464] GLOBAL_SIZING max-cap multipliers: beta0=5.12e-12 on 492 driver pin(s); 0 over their max capacitance at the start, 0 at the end.
+[INFO RSZ-0444] GLOBAL_SIZING timing_scale=livramento_alpha: terminal alpha=0.835066 (alpha0=1, 1 reschedules); alpha_floor_bound=false (floor=1e-12).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.018 -> -0.015 (-0.033); TNS 0.0 -> -0.1 (-0.1); leakage 1.55e-05 -> 1.4e-05W (-10.27%); area 7e-10 -> 6.79e-10m^2 (-3.08%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    -3.2% |   -0.015 |       -0.1 |       -0.1 |     10 | _876_/D
+------------------------------------------------------------------------------------------------------------------------------
+[WARNING RSZ-0062] Unable to repair all setup violations.
+=== livramento_partial capped at two iterations ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=livramento_partial init=min_size init_seed=0 seed=delay_proportional_crit_mu update=livramento_ratio mu_policy=endpoint_ratio mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=livramento_alpha term=pure_cap best=none | max_iter=2 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=false power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=true slew_fix_pass=false relax_max_cap=true
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 195/422 editable instances.
+[INFO RSZ-0400] GLOBAL_SIZING: 135 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 135 replacements attempted in total (135 upsize, 0 downsize).
+[INFO RSZ-0459] GLOBAL_SIZING cap fix pass: 0 gate(s) over their max capacitance, summed over 2 sweep(s); 0 resized to clear it, 0 resized but still over it, 0 left as they were.
+[INFO RSZ-0464] GLOBAL_SIZING max-cap multipliers: beta0=5.12e-12 on 492 driver pin(s); 0 over their max capacitance at the start, 0 at the end.
+[INFO RSZ-0444] GLOBAL_SIZING timing_scale=livramento_alpha: terminal alpha=0.817282 (alpha0=1, 2 reschedules); alpha_floor_bound=false (floor=1e-12).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.018 -> 0.026 (0.008); TNS 0.0 -> 0.0 (0.0); leakage 1.55e-05 -> 1.56e-05W (+0.18%); area 7e-10 -> 7.05e-10m^2 (+0.76%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.8% |    0.026 |        0.0 |        0.0 |      0 | _876_/D
+------------------------------------------------------------------------------------------------------------------------------
+=== livramento_partial, final iterate kept ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=livramento_partial init=min_size init_seed=0 seed=delay_proportional_crit_mu update=livramento_ratio mu_policy=endpoint_ratio mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=livramento_alpha term=pure_cap best=none | max_iter=6 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=false power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=true slew_fix_pass=false relax_max_cap=true
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 195/422 editable instances.
+[INFO RSZ-0400] GLOBAL_SIZING: 164 cells replaced (loop); 6/6 sweeps accepted, 0 rolled back; 164 replacements attempted in total (160 upsize, 4 downsize).
+[INFO RSZ-0459] GLOBAL_SIZING cap fix pass: 0 gate(s) over their max capacitance, summed over 6 sweep(s); 0 resized to clear it, 0 resized but still over it, 0 left as they were.
+[INFO RSZ-0464] GLOBAL_SIZING max-cap multipliers: beta0=5.12e-12 on 492 driver pin(s); 0 over their max capacitance at the start, 0 at the end.
+[INFO RSZ-0444] GLOBAL_SIZING timing_scale=livramento_alpha: terminal alpha=0.971965 (alpha0=1, 6 reschedules); alpha_floor_bound=false (floor=1e-12).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.018 -> 0.034 (0.015); TNS 0.0 -> 0.0 (0.0); leakage 1.55e-05 -> 1.67e-05W (+7.49%); area 7e-10 -> 7.32e-10m^2 (+4.60%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +4.8% |    0.034 |        0.0 |        0.0 |      0 | _880_/D
+------------------------------------------------------------------------------------------------------------------------------
+=== livramento_partial: iteration 2 is returned ===
+[WARNING RSZ-0431] GLOBAL_SIZING: downsize_guard=depth_budget under the gauss_seidel_topo engine keeps a Jacobi-era guard (budgets frozen at sweep start) where the papers use the local-slack veto (SYNTHESIS §3.2-F).
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=livramento_partial init=min_size init_seed=0 seed=delay_proportional_crit_mu update=livramento_ratio mu_policy=endpoint_ratio mu_autopair=false projection=proportional_reverse_topo sweep=gauss_seidel_topo gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=livramento_alpha term=pure_cap best=livramento_feasible | max_iter=6 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=12 budget_safety=1 upsize_hyst=0 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=true cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=false power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=true slew_fix_pass=false relax_max_cap=true
+[INFO RSZ-0416] GLOBAL_SIZING: init_mode=min_size - replacing every editable instance with the lowest-leakage member of its leakage-ranked swappable group.
+[INFO RSZ-0415] GLOBAL_SIZING: init pass replaced 195/422 editable instances.
+[INFO RSZ-0460] GLOBAL_SIZING best solution: 5 of 6 iteration(s) had no setup, max capacitance or max slew violation; restoring iteration 2, the lowest-power one.
+[INFO RSZ-0400] GLOBAL_SIZING: 164 cells replaced (loop); 6/6 sweeps accepted, 0 rolled back; 164 replacements attempted in total (160 upsize, 4 downsize).
+[INFO RSZ-0459] GLOBAL_SIZING cap fix pass: 0 gate(s) over their max capacitance, summed over 6 sweep(s); 0 resized to clear it, 0 resized but still over it, 0 left as they were.
+[INFO RSZ-0464] GLOBAL_SIZING max-cap multipliers: beta0=5.12e-12 on 492 driver pin(s); 0 over their max capacitance at the start, 0 at the end.
+[INFO RSZ-0444] GLOBAL_SIZING timing_scale=livramento_alpha: terminal alpha=0.971965 (alpha0=1, 6 reschedules); alpha_floor_bound=false (floor=1e-12).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.018 -> 0.026 (0.008); TNS 0.0 -> 0.0 (0.0); leakage 1.55e-05 -> 1.56e-05W (+0.18%); area 7e-10 -> 7.05e-10m^2 (+0.76%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +0.8% |    0.026 |        0.0 |        0.0 |      0 | _876_/D
+------------------------------------------------------------------------------------------------------------------------------
+Iteration 2 returned: 28 instance(s) differ from the final iterate.
+worst slack max 0.03
+max capacitance violations: 0, max slew violations: 0
+=== -best_tracker livramento_feasible ===
+*******************************************
+Global sizing config:
+-preset:                 rsz_baseline
+-init_mode:              undefined
+-init_seed:              undefined
+-lambda_seed:            undefined
+-lambda_update:          undefined
+-mu_policy:              undefined
+-sweep_engine:           undefined
+-gs_refresh:             undefined
+-traversal:              undefined
+-downsize_guard:         undefined
+-move_set:               undefined
+-fast_olr_start_iter:    undefined
+-output_drc_veto:        undefined
+-timing_scale:           undefined
+-termination:            undefined
+-best_tracker:           livramento_feasible
+-include_clock_network:  undefined
+-size_registers:         undefined
+-power_objective:        undefined
+-power_phase_filter:     undefined
+-timing_cost:            undefined
+-setup_slack_margin:     undefined
+-max_iterations:         2
+-max_inner_sweeps:       undefined
+-restart_each_iteration: undefined
+-cap_fix_pass:           undefined
+-slew_fix_pass:          undefined
+-relax_max_cap:          undefined
+-beta:                   undefined
+-mu_exponent:            undefined
+-lambda_floor:           undefined
+-timing_bias:            undefined
+-budget_safety_factor:   undefined
+-upsize_hysteresis:      undefined
+-lambda_init_value:      undefined
+-lambda_seed_exponent:   undefined
+-est_loop_iters:         undefined
+-lambda_update_c:        undefined
+-flach_k_init:           undefined
+-flach_k_tns_small:      undefined
+-flach_k_final:          undefined
+-sharma_r:               undefined
+-sharma_k:               undefined
+-reimann_rho_init:       undefined
+-reimann_k:              undefined
+-reimann_setpoint:       undefined
+-livramento_alpha0:      undefined
+-cost_upstream_load:     undefined
+-cost_fanout_slew:       undefined
+-cost_global_phi:        undefined
+-cost_delta_delay:       undefined
+-gamma_local_slack:      undefined
+-stagnation_window:      undefined
+-stagnation_count:       undefined
+-stagnation_improve_frac: undefined
+-stagnation_require_tns: undefined
+-near_met_gate_frac:     undefined
+-term_tns_target_frac:   undefined
+-term_wns_target_frac:   undefined
+-term_tns_improve_frac:  undefined
+-term_power_improve_frac: undefined
+-term_improve_window:    undefined
+-term_wall_limit_s:      undefined
+-best_tns_target_frac:   undefined
+*******************************************
+[INFO RSZ-0417] GLOBAL_SIZING config: preset=rsz_baseline init=as_given init_seed=0 seed=delay_proportional_crit_mu update=norm_subgradient mu_policy=reseed_each_iter mu_autopair=false projection=proportional_reverse_topo sweep=jacobi_snapshot gs_refresh=gs_local traversal=forward_topo guard=depth_budget move_set=full_library fast_olr_start=5 output_drc_veto=absolute timing_scale=auto_median term=fixed_iters best=livramento_feasible | max_iter=2 beta=0.6 mu_exp=2 lambda_floor=1e-12 timing_bias=64 budget_safety=1 upsize_hyst=0.02 clock_net=false margin=0 | lambda_init=12 seed_exp=2 est_iters=3 update_c=1 flach_k=1/4/1 sharma_r=1.01 sharma_k=10 reimann_rho=0.05 reimann_k=1 reimann_ksched=5/0.5/2 reimann_setpoint=s_init livramento_alpha0=1 | cost_upstream_load=true cost_fanout_slew=false cost_global_phi=false cost_delta_delay=false | gamma_local_slack=1 stagnation=5/2/0/false near_met_gate=-1 chinnery=0.1/0.01/0.1/0.01/3/2.59e+05 best_tns_frac=0.1 | size_registers=true power_objective=leakage power_phase_filter=false arc_slack_k=4/1/1/4 max_inner_sweeps=1 restart_each_iteration=false timing_cost=worst_arc cap_fix_pass=false slew_fix_pass=false relax_max_cap=false
+[INFO RSZ-0460] GLOBAL_SIZING best solution: 2 of 2 iteration(s) had no setup, max capacitance or max slew violation; restoring iteration 1, the lowest-power one.
+[INFO RSZ-0400] GLOBAL_SIZING: 131 cells replaced (loop); 2/2 sweeps accepted, 0 rolled back; 131 replacements attempted in total (108 upsize, 23 downsize).
+[INFO RSZ-0443] GLOBAL_SIZING cap re-check: 0 move(s) reverted for creating a max-cap violation the sweep's frozen veto could not see; pass_bound_hit=false.
+[INFO RSZ-0409] GLOBAL_SIZING QoR: WNS 0.018 -> 0.059 (0.041); TNS 0.0 -> 0.0 (0.0); leakage 1.55e-05 -> 1.72e-05W (+10.74%); area 7e-10 -> 7.24e-10m^2 (+3.42%).
+   Iter   | Removed | Resized | Inserted | Cloned |  Pin  |   Area   |    WNS   |   StTNS    |   EnTNS    |  Viol  |  Worst
+          | Buffers |  Gates  | Buffers  |  Gates | Swaps |          |          |            |            | Endpts | St/EnPt
+------------------------------------------------------------------------------------------------------------------------------
+    final |       0 |       0 |        0 |      0 |     0 |    +3.6% |    0.059 |        0.0 |        0.0 |      0 | _869_/D
+------------------------------------------------------------------------------------------------------------------------------
+=== an unknown value is rejected ===
+[ERROR RSZ-0417] -best_tracker argument 'livramento' is not one of: none, flach_dominance, reimann_score, wns_pass_reject, livramento_feasible
